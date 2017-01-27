@@ -48,12 +48,13 @@ mindMapWidget = do
   el "div" $ do
 
     rec
-      ev <- viewNodeCon (Node "first" False)
-      dyn1 <- foldDyn const (Node "second" False) $ mergeWith const [ev]
+      dyn1 <- holdDyn (Node "second" False) ev
       ev2 <- viewNode dyn1
-      dyn2 <- foldDyn const (Node "third" False) ev2
+      dyn2 <- holdDyn (Node "third" False) ev2
       ev3 <- viewNode dyn2
 
+      dyn3 <- holdDyn (Node "first" False) ev3
+      ev <- viewNode dyn3
 
     return ()
 
@@ -79,9 +80,9 @@ viewNode node = do
     dynText dynT
 
   let selectEvent = domEvent Click t
-      nodeInv = fmap (\n -> n {nodeSelected = not $ nodeSelected n}) node
+      nodeInv = current $ fmap (\n -> n {nodeSelected = not $ nodeSelected n}) node
 
-  return $ attachPromptlyDynWith const nodeInv selectEvent
+  return $ tag nodeInv selectEvent
 
 viewNodeCon :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
