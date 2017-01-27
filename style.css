@@ -1,0 +1,6 @@
+.textboxselected {
+  outline: #00FF00 dotted thick;
+}
+.textbox {
+  outline: #0000FF dotted thin;
+}
