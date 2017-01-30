@@ -144,6 +144,7 @@ mindMapWidget = do
       nodeMapDyn <- holdDyn (nodeMap mindMapOrig) nodeMapEv
 
       dynT <- holdDyn "Debug Info" $ fmap (showT) debugInfo
+      dynT2 <- holdDyn "Node Clicked: " $ fmap (showT) clickEvent
 
       --clickDyn <- holdDyn CanvasClicked clickEvent
 
@@ -159,6 +160,7 @@ mindMapWidget = do
             --clickEvent = tag (constant CanvasClicked) never
       el "div" $ text "hello"
       dynText dynT
+      dynText dynT2
       return ()
     return ()
 
@@ -241,18 +243,22 @@ renderTree :: RefMonad m t
   => Dynamic t NodeMap -> m (Event t CanvasMouseEvents)
 renderTree nodeMap =
   let 
-    nodes = fmap (Map.toList) nodeMap
-    node = fmap (snd.head) nodes
-    f :: (RefMonad m t) =>
-      Int -> [(NodeId, Node)] -> m (Event t CanvasMouseEvents)
-    f _ [] = return (never)
-    f y (n:ns) = do
-      --ev <- viewNode (constDyn (snd n)) (constDyn (10,y))
-      --ev2 <- f (y + 10) ns
-      let ev = never
-      return ev -- (mergeWith const [ev2,ev])
+    --f :: (RefMonad m t) =>
+    --  Int -> [(NodeId, Node)] -> m (Event t CanvasMouseEvents)
+    --f _ [] = return (never)
+    --f y (n:ns) = do
+    --  --ev <- viewNode (constDyn (snd n)) (constDyn (10,y))
+    --  --ev2 <- f (y + 10) ns
+    --  let ev = never
+    --  return ev -- (mergeWith const [ev2,ev])
+    f k n = viewNode n (constDyn (10,k*10))
   in do
-     viewNode node (constDyn (10,10))
+     -- listViewWithKey
+     --  (k -> Dynamic t v -> m (Event t a)) -> m (Event t (Map k a))
+     evMap <- listViewWithKey nodeMap f 
+     let ev = fmap (snd.head.Map.toList) evMap
+         
+     return ev
 
      --f 10 ns
 
@@ -296,7 +302,7 @@ viewNode node coord = do
   --  _ <- elDynAttrNS' xmlns "body" (constDyn Map.empty) $
   --    el "form" $
   --      elAttr "input" ("type" =: "text") $ return ()
-  return $ mergeWith const [ev1', ev2']
+  return $ leftmost [ev1', ev2']
 
 -- 
 -- canvasContents :: ( DomBuilder t m
