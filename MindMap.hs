@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings, RecursiveDo, ScopedTypeVariables, FlexibleContexts, TypeFamilies, ConstraintKinds, TemplateHaskell #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE RankNTypes #-}
 
 module MindMap where
 
@@ -16,9 +17,16 @@ import Data.Text (Text)
 import qualified Data.Text as T
 
 import GHCJS.DOM.EventM (mouseOffsetXY)
+import GHCJS.DOM.Document (Document)
+
 
 import Reflex
 import Reflex.Dom
+
+import qualified Event as E
+import MyWidget (myMainWidgetWithCss)
+
+import qualified Data.List.NonEmpty as NE
 
 --------------------------------------------------------------------------------
 -- Model
@@ -95,6 +103,12 @@ data CanvasMouseEvents =
   | CanvasClicked
   deriving (Show)
 
+data KeyPressEvent =
+    NodeCreate
+  | NodeDelete
+  | NodeEdit
+  deriving (Show)
+  
 data DebugInfo = CanvasDebugInfo {
     debugInfoMouseCoord :: (Int, Int)
 }
@@ -104,7 +118,9 @@ data DebugInfo = CanvasDebugInfo {
 --------------------------------------------------------------------------------
 
 main :: IO ()
-main = mainWidgetWithCss $(embedFile "style.css") mindMapWidget
+main = 
+  myMainWidgetWithCss $(embedFile "style.css") mindMapWidget
+
 
 type RefMonad m t = (DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
@@ -124,8 +140,10 @@ mindMapWidget :: ( DomBuilder t m
            , PostBuild t m
            , TriggerEvent t m
            )
-        => m ()
-mindMapWidget = do
+        => Document -> m ()
+mindMapWidget doc = do
+  kev <- E.globalKeyEvents doc
+
   let mindMapOrig = MindMap (Canvas 600 400) nt nm
       nt = Map.fromList [
                   (0, [1])
@@ -137,6 +155,8 @@ mindMapWidget = do
                 ]
   el "div" $ do
     text "Some text"
+    kdyn <- holdDyn (NE.fromList [E.KeyPress 'a']) kev
+    dynText $ fmap showT kdyn
 
   el "div" $ do
     rec 
@@ -243,15 +263,7 @@ renderTree :: RefMonad m t
   => Dynamic t NodeMap -> m (Event t CanvasMouseEvents)
 renderTree nodeMap =
   let 
-    --f :: (RefMonad m t) =>
-    --  Int -> [(NodeId, Node)] -> m (Event t CanvasMouseEvents)
-    --f _ [] = return (never)
-    --f y (n:ns) = do
-    --  --ev <- viewNode (constDyn (snd n)) (constDyn (10,y))
-    --  --ev2 <- f (y + 10) ns
-    --  let ev = never
-    --  return ev -- (mergeWith const [ev2,ev])
-    f k n = viewNode n (constDyn (10,k*10))
+    f k n = viewNode n (constDyn (10,20+ k*20))
   in do
      -- listViewWithKey
      --  (k -> Dynamic t v -> m (Event t a)) -> m (Event t (Map k a))
@@ -260,7 +272,6 @@ renderTree nodeMap =
          
      return ev
 
-     --f 10 ns
 
 -- editNode :: Dynamic t (Text, Coords) -> m ()
 
@@ -296,13 +307,13 @@ viewNode node coord = do
       ev2 = tag (current $ fmap nodeId node) dblClick
 
       ev1' = fmap (\i -> NodeClicked i) ev1
-      ev2' = fmap (\i -> NodeDoubleClicked i) ev1
+      ev2' = fmap (\i -> NodeDoubleClicked i) ev2
 
   --elDynAttr "foreignObject" attr $ do
   --  _ <- elDynAttrNS' xmlns "body" (constDyn Map.empty) $
   --    el "form" $
   --      elAttr "input" ("type" =: "text") $ return ()
-  return $ leftmost [ev1', ev2']
+  return $ leftmost [ev2', ev1']
 
 -- 
 -- canvasContents :: ( DomBuilder t m
