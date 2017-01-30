@@ -140,20 +140,20 @@ mindMapWidget = do
 
   el "div" $ do
     rec 
-      --editNodeDyn <- holdDyn Nothing editNodeEv    
-      --nodeMapDyn <- holdDyn (nodeMap mindMapOrig) nodeMapEv
+      editNodeDyn <- holdDyn Nothing editNodeEv    
+      nodeMapDyn <- holdDyn (nodeMap mindMapOrig) nodeMapEv
 
       dynT <- holdDyn "Debug Info" $ fmap (showT) debugInfo
 
-      clickDyn <- holdDyn CanvasClicked clickEvent
+      --clickDyn <- holdDyn CanvasClicked clickEvent
 
       (clickEvent, debugInfo) <- drawCanvas (Canvas 400 200)
             nodeTreeDyn nodeMapDyn editNodeDyn
 
-      let -- (editNodeEv, nodeMapEv) = handleClickEvent clickDyn nodeMapDyn
+      let   (editNodeEv, nodeMapEv) = handleClickEvent clickEvent nodeMapDyn
             --(editNodeEv, nodeMapEv) = (never,never)
-            (editNodeDyn, nodeMapDyn) = 
-              (constDyn Nothing, constDyn $ Map.empty)
+            --(editNodeDyn, nodeMapDyn) = 
+            --  (constDyn Nothing, constDyn $ Map.empty)
             nodeTreeDyn = constDyn (nodeTree mindMapOrig)
             --debugInfo = tag (constant CanvasClicked) never
             --clickEvent = tag (constant CanvasClicked) never
@@ -214,23 +214,19 @@ drawCanvas c nt nm en = do
   -- Simple render a list
   let svgAttr = constDyn $ 
                   Map.fromList [
-                    ("width", T.pack $ show $ canvasWidth c)
-                  , ("height", T.pack $ show $ canvasHieght c)
-                  -- , ("style", "border:solid; margin:4em")
+                    ("xmlns", "http://www.w3.org/2000/svg")
+                  , ("width", "600" )
+                  , ("height", "400")
+                  , ("style", "border:solid; margin:4em")
                   ]
-  (elm, ev) <- elDynAttrNS' svgns "svg" svgAttr $ do
-    el "text" $ return ()
-    let -- nodeList = fmap (snd.Map.toList nm)
-
-    
-    --canvasMouseEv <- renderTree nm
+  (elm, ev) <- elDynAttrNS' Nothing "svg" svgAttr $ do
+    canvasMouseEv <- renderTree nm
 
     let mouseEvent = tag (constant (100,100)) canvasMouseEv
     -- mouseEvent <- wrapDomEvent 
     --   (_element_raw elm) 
     --   (onEventName Mousemove) 
     --   mouseOffsetXY
-        canvasMouseEv = never
 
     let dbgInfo = fmap CanvasDebugInfo mouseEvent
 
@@ -245,16 +241,20 @@ renderTree :: RefMonad m t
   => Dynamic t NodeMap -> m (Event t CanvasMouseEvents)
 renderTree nodeMap =
   let 
+    nodes = fmap (Map.toList) nodeMap
+    node = fmap (snd.head) nodes
     f :: (RefMonad m t) =>
       Int -> [(NodeId, Node)] -> m (Event t CanvasMouseEvents)
     f _ [] = return (never)
     f y (n:ns) = do
-      ev <- viewNode (constDyn (snd n)) (constDyn (10,y))
+      --ev <- viewNode (constDyn (snd n)) (constDyn (10,y))
       --ev2 <- f (y + 10) ns
+      let ev = never
       return ev -- (mergeWith const [ev2,ev])
   in do
-     ns <- sample $ current $ fmap (Map.toList) nodeMap
-     f 10 ns
+     viewNode node (constDyn (10,10))
+
+     --f 10 ns
 
 -- editNode :: Dynamic t (Text, Coords) -> m ()
 
