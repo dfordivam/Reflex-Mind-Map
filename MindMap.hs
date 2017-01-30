@@ -221,7 +221,7 @@ drawCanvas c nt nm en = do
                   , ("height", "400")
                   , ("style", "border:solid; margin:4em")
                   ]
-  (elm, ev) <- elDynAttrNS' Nothing "svg" svgAttr $ do
+  (elm, ev) <- elDynAttrNS' svgns "svg" svgAttr $ do
     canvasMouseEv <- renderTree nm
 
     let mouseEvent = tag (constant (100,100)) canvasMouseEv
@@ -285,7 +285,7 @@ viewNode node coord = do
       
       dynT = fmap nodeContent node
  
-  (t,_) <- elDynAttr' "text" dynAttr  $ do
+  (t,_) <- elDynAttrNS' svgns "text" dynAttr  $ do
     dynText dynT
 
 
