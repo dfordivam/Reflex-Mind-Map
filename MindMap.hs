@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecursiveDo, ScopedTypeVariables, FlexibleContexts, TypeFamilies, ConstraintKinds, TemplateHaskell #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE LambdaCase #-}
 
 module MindMap where
 
@@ -81,7 +82,7 @@ data Node = Node {
   , nodeSelected    :: Bool
   , nodeOpen        :: Bool
 }
-  deriving (Show)
+  deriving (Show, Eq)
 
 type NodeTree = Map NodeId [NodeId]
 type NodeMap = Map NodeId Node
@@ -97,6 +98,16 @@ data MindMap = MindMap {
 }
   deriving (Show)
 
+data AppState =
+    SelectedNode NodeId
+  | EditingNode NodeId
+  deriving (Show, Eq)
+
+data CanvasEvent = 
+    CanvasMouseEvents CanvasMouseEvents
+  | KeyPressEvent KeyPressEvent
+  deriving (Show)
+
 data CanvasMouseEvents = 
     NodeClicked NodeId
   | NodeDoubleClicked NodeId
@@ -107,6 +118,7 @@ data KeyPressEvent =
     NodeCreate
   | NodeDelete
   | NodeEdit
+  | NodeCollapseToggle
   deriving (Show)
   
 data DebugInfo = CanvasDebugInfo {
@@ -158,62 +170,109 @@ mindMapWidget doc = do
     kdyn <- holdDyn (NE.fromList [E.KeyPress 'a']) kev
     dynText $ fmap showT kdyn
 
+    kpdyn <- holdDyn (NodeCreate) (fforMaybe kev keypressEvent)
+    dynText $ fmap showT kpdyn
+
   el "div" $ do
     rec 
-      editNodeDyn <- holdDyn Nothing editNodeEv    
-      nodeMapDyn <- holdDyn (nodeMap mindMapOrig) nodeMapEv
-
       dynT <- holdDyn "Debug Info" $ fmap (showT) debugInfo
       dynT2 <- holdDyn "Node Clicked: " $ fmap (showT) clickEvent
-
-      --clickDyn <- holdDyn CanvasClicked clickEvent
 
       (clickEvent, debugInfo) <- drawCanvas (Canvas 400 200)
             nodeTreeDyn nodeMapDyn editNodeDyn
 
-      let   (editNodeEv, nodeMapEv) = handleClickEvent clickEvent nodeMapDyn
-            --(editNodeEv, nodeMapEv) = (never,never)
-            --(editNodeDyn, nodeMapDyn) = 
-            --  (constDyn Nothing, constDyn $ Map.empty)
-            nodeTreeDyn = constDyn (nodeTree mindMapOrig)
-            --debugInfo = tag (constant CanvasClicked) never
-            --clickEvent = tag (constant CanvasClicked) never
-      el "div" $ text "hello"
+      -- (a -> b -> b) -> b -> Event t a -> m (Dynamic t b)
+      dynData <- foldDyn handleEvent
+        (SelectedNode 0, mindMapOrig) canvasEv
+      
+      let 
+        
+        (appStateDyn, mindMapDyn) = splitDynPure dynData
+
+        nodeMapDyn = fmap nodeMap mindMapDyn
+        nodeTreeDyn = fmap nodeTree mindMapDyn
+        editNodeDyn = ffor appStateDyn
+          (\case
+            SelectedNode _ -> Nothing
+            EditingNode n -> Just n)
+
+        keypressEv = fforMaybe kev keypressEvent
+
+        clickEvent' = fmap CanvasMouseEvents clickEvent
+        keybEv' = fmap KeyPressEvent keypressEv
+
+        canvasEv' = leftmost [clickEvent',keybEv']
+        canvasEv = traceEventWith show canvasEv'
+
+      el "div" $ text "Text after canvas"
       dynText dynT
       dynText dynT2
       return ()
     return ()
+
+keypressEvent :: NE.NonEmpty E.KeyEvent -> Maybe KeyPressEvent
+keypressEvent x = case (NE.head x) of
+  E.KeyPress 'i' -> Just NodeCreate
+  E.KeyStroke E.Down E.Delete 
+    (E.Modifiers False False False) -> Just NodeDelete
+  E.KeyPress 'e' -> Just NodeEdit
+  _ -> Nothing
+
+handleEvent ::
+     CanvasEvent
+  -> (AppState, MindMap)
+  -> (AppState, MindMap)
+handleEvent ev (appState, mindMap) =
+  case ev of
+    CanvasMouseEvents (NodeClicked n) ->
+      (SelectedNode n, mindMap {nodeMap = newNodes})
+      where
+        newNodes = Map.mapWithKey f nodes
+        f k a = a {nodeSelected = s}
+          where s = if k == n then True else False
+      
+    CanvasMouseEvents (NodeDoubleClicked n) ->
+      (EditingNode n, mindMap {nodeMap = newNodes})
+      where
+        newNodes = Map.mapWithKey f nodes
+        f k a = a {nodeSelected = False}
+
+    CanvasMouseEvents CanvasClicked ->
+      (st appState, mindMap {nodeMap = newNodes})
+      where
+        newNodes = Map.mapWithKey f nodes
+        f k a = a {nodeSelected = False}
+        st (SelectedNode n) = SelectedNode n
+        st (EditingNode n) = SelectedNode n
+
+  where 
+    nodes = nodeMap mindMap
+
+    --KeyPressEvent NodeCreate ->
+    --  (Just $ nodeId newNode,
+    --    (EditingNode (nodeId newNode), newNodes))
+    --  where
+    --    (k, _) = Map.findMax nodes
+    --    parent = (\(SelectedNode n) -> n) appState
+    --    newNode = Node (k+1) parent "" True True
+
+    --    newNodes' = Map.mapWithKey f nodes
+    --    f k a = a {nodeSelected = False}
+
+    --    newNodes = Map.insert (nodeId newNode) newNode newNodes'
+
+    -- KeyPressEvent NodeDelete ->
+    --   (Just newNode, newNodesEv)
+    -- KeyPressEvent NodeEdit   ->
+    --   (Just newNode, newNodesEv)
+          
 
 -- handleClickEvent :: (
 --      Event t CanvasMouseEvents
 --   -> Dynamic t NodeMap
 --   -> (Event t EditNode, Event t NodeMap)
 
-handleClickEvent ev nodes = 
-  (\(a,b) -> (a, coincidence b)) $
-  splitE $ fmap f ev
-  where 
-    f ev' =
-       case ev' of
-         NodeClicked n -> (Nothing, newNodesEv)
-           where
-             newNodes = fmap (Map.mapWithKey f) nodes
-             newNodesEv = tag (current newNodes) ev
-             f k a = a {nodeSelected = s}
-               where s = if k == n then True else False
-           
-         NodeDoubleClicked n -> (Just n, newNodesEv)
-           where
-             newNodes = fmap (Map.mapWithKey f) nodes
-             newNodesEv = tag (current newNodes) ev
-             f k a = a {nodeSelected = False}
-
-         CanvasClicked -> (Nothing, newNodesEv)
-           where
-             newNodes = fmap (Map.mapWithKey f) nodes
-             newNodesEv = tag (current newNodes) ev
-             f k a = a {nodeSelected = False}
-
+        
 -- 
 drawCanvas :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
