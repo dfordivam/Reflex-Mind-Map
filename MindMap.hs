@@ -179,7 +179,7 @@ mindMapWidget doc = do
       dynT2 <- holdDyn "Node Clicked: " $ fmap (showT) clickEvent
 
       (clickEvent, debugInfo) <- drawCanvas (Canvas 400 200)
-            nodeTreeDyn nodeMapDyn editNodeDyn
+        nodeTreeDyn nodeMapDyn editNodeDyn
 
       -- (a -> b -> b) -> b -> Event t a -> m (Dynamic t b)
       dynData <- foldDyn handleEvent
@@ -189,7 +189,8 @@ mindMapWidget doc = do
         
         (appStateDyn, mindMapDyn) = splitDynPure dynData
 
-        nodeMapDyn = fmap nodeMap mindMapDyn
+        nodeMapDyn = traceDynWith show $ fmap nodeMap mindMapDyn
+
         nodeTreeDyn = fmap nodeTree mindMapDyn
         editNodeDyn = ffor appStateDyn
           (\case
@@ -228,8 +229,7 @@ handleEvent ev (appState, mindMap) =
       (SelectedNode n, mindMap {nodeMap = newNodes})
       where
         newNodes = Map.mapWithKey f nodes
-        f k a = a {nodeSelected = s}
-          where s = if k == n then True else False
+        f k a = a {nodeSelected = (k == n)}
       
     CanvasMouseEvents (NodeDoubleClicked n) ->
       (EditingNode n, mindMap {nodeMap = newNodes})
@@ -238,34 +238,42 @@ handleEvent ev (appState, mindMap) =
         f k a = a {nodeSelected = False}
 
     CanvasMouseEvents CanvasClicked ->
-      (st appState, mindMap {nodeMap = newNodes})
+      (SelectedNode n, mindMap {nodeMap = newNodes})
       where
         newNodes = Map.mapWithKey f nodes
         f k a = a {nodeSelected = False}
-        st (SelectedNode n) = SelectedNode n
-        st (EditingNode n) = SelectedNode n
+
+    KeyPressEvent NodeCreate ->
+      (EditingNode $ nodeId newNode, mindMap {nodeMap = newNodes})
+      where
+        (k, _) = Map.findMax nodes
+        parent = n
+        newNode = Node (k+1) parent (showT $ (k+1)) True True
+
+        newNodes' = Map.mapWithKey f nodes
+        f k a = a {nodeSelected = False}
+
+        newNodes = Map.insert (nodeId newNode) newNode newNodes'
+
+    KeyPressEvent NodeDelete ->
+      (SelectedNode $ nodeParent node, mindMap {nodeMap = newNodes})
+      where
+        newNodes' = Map.mapWithKey f nodes
+        f k a = a {nodeSelected = False}
+
+        newNodes = Map.delete n newNodes'
+
+    KeyPressEvent NodeEdit   ->
+      (EditingNode n, mindMap)
+          
 
   where 
     nodes = nodeMap mindMap
+    (Just node) = Map.lookup n nodes 
+    n = f appState
+    f (SelectedNode n) =  n
+    f (EditingNode n) =  n
 
-    --KeyPressEvent NodeCreate ->
-    --  (Just $ nodeId newNode,
-    --    (EditingNode (nodeId newNode), newNodes))
-    --  where
-    --    (k, _) = Map.findMax nodes
-    --    parent = (\(SelectedNode n) -> n) appState
-    --    newNode = Node (k+1) parent "" True True
-
-    --    newNodes' = Map.mapWithKey f nodes
-    --    f k a = a {nodeSelected = False}
-
-    --    newNodes = Map.insert (nodeId newNode) newNode newNodes'
-
-    -- KeyPressEvent NodeDelete ->
-    --   (Just newNode, newNodesEv)
-    -- KeyPressEvent NodeEdit   ->
-    --   (Just newNode, newNodesEv)
-          
 
 -- handleClickEvent :: (
 --      Event t CanvasMouseEvents
