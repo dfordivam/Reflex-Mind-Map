@@ -26,6 +26,8 @@ import Reflex.Dom
 
 import qualified Event as E
 import MyWidget (myMainWidgetWithCss)
+import DataModel
+import Algo
 
 import qualified Data.List.NonEmpty as NE
 
@@ -67,36 +69,8 @@ import qualified Data.List.NonEmpty as NE
 -- Output : Click Event, Double Click Event, TextBoxValue Event
 --    
 
-data Canvas = Canvas {
-    canvasWidth   :: Int
-  , canvasHieght  :: Int
-}
-  deriving (Show)
-
-type NodeId = Int
-
-data Node = Node {
-    nodeId          :: NodeId
-  , nodeParent      :: NodeId
-  , nodeContent     :: Text
-  , nodeSelected    :: Bool
-  , nodeOpen        :: Bool
-}
-  deriving (Show, Eq)
-
-type NodeTree = Map NodeId [NodeId]
-type NodeMap = Map NodeId Node
-
-type Coords = (Int, Int)
 
 type EditNode = Maybe NodeId
-
-data MindMap = MindMap {
-    canvas          :: Canvas
-  , nodeTree        :: NodeTree
-  , nodeMap         :: NodeMap
-}
-  deriving (Show)
 
 data AppState =
     SelectedNode NodeId
@@ -159,7 +133,9 @@ mindMapWidget doc = do
   let mindMapOrig = MindMap (Canvas 600 400) nt nm
       nt = Map.fromList [
                   (0, [1])
-                , (1, [2])]
+                , (1, [2])
+                , (2, [])
+                ]
       nm = Map.fromList [
                   (0, Node 0 0 "0" False True)
                 , (1, Node 1 0 "1" False True)
@@ -178,8 +154,8 @@ mindMapWidget doc = do
       dynT <- holdDyn "Debug Info" $ fmap (showT) debugInfo
       dynT2 <- holdDyn "Node Clicked: " $ fmap (showT) clickEvent
 
-      (clickEvent, debugInfo) <- drawCanvas (Canvas 400 200)
-        nodeTreeDyn nodeMapDyn editNodeDyn
+      (clickEvent, debugInfo) <- drawCanvas 
+        mindMapDyn editNodeDyn
 
       -- (a -> b -> b) -> b -> Event t a -> m (Dynamic t b)
       dynData <- foldDyn handleEvent
@@ -244,7 +220,8 @@ handleEvent ev (appState, mindMap) =
         f k a = a {nodeSelected = False}
 
     KeyPressEvent NodeCreate ->
-      (EditingNode $ nodeId newNode, mindMap {nodeMap = newNodes})
+      (EditingNode $ nodeId newNode, mindMap {nodeMap = newNodes, 
+        nodeTree = newTree})
       where
         (k, _) = Map.findMax nodes
         parent = n
@@ -254,6 +231,11 @@ handleEvent ev (appState, mindMap) =
         f k a = a {nodeSelected = False}
 
         newNodes = Map.insert (nodeId newNode) newNode newNodes'
+
+        newTree' = Map.insert (nodeId newNode) [] (nodeTree mindMap)
+        newTree  = Map.update (\x -> Just $ x ++ [nodeId newNode])
+                      parent (newTree')
+
 
     KeyPressEvent NodeDelete ->
       (SelectedNode $ nodeParent node, mindMap {nodeMap = newNodes})
@@ -289,27 +271,31 @@ drawCanvas :: ( DomBuilder t m
            , PostBuild t m
            , TriggerEvent t m
            )
-  => Canvas 
-  -> Dynamic t NodeTree -- Structure of MindMap
-  -> Dynamic t NodeMap  -- Contents of MindMap
+  => Dynamic t MindMap 
   -> Dynamic t EditNode -- Current node to edit
   -> m (Event t CanvasMouseEvents, Event t DebugInfo)
 
-drawCanvas c nt nm en = do
+drawCanvas mindMapDyn en = do
 
+  
   -- Construct tree
   -- Render nodes at proper position
   --
   -- Simple render a list
-  let svgAttr = constDyn $ 
+  let 
+      svgAttr = ffor csize $ (\(x,y) -> 
                   Map.fromList [
                     ("xmlns", "http://www.w3.org/2000/svg")
-                  , ("width", "600" )
-                  , ("height", "400")
+                  , ("width", showT x)
+                  , ("height", showT y)
                   , ("style", "border:solid; margin:4em")
-                  ]
+                  ])
+
+      csize = fmap (\c -> (canvasWidth c, canvasHieght c)) $
+              fmap canvas mindMapDyn
+      
   (elm, ev) <- elDynAttrNS' svgns "svg" svgAttr $ do
-    canvasMouseEv <- renderTree nm
+    canvasMouseEv <- renderTree mindMapDyn
 
     let mouseEvent = tag (constant (100,100)) canvasMouseEv
     -- mouseEvent <- wrapDomEvent 
@@ -323,21 +309,13 @@ drawCanvas c nt nm en = do
 
   return ev
 
-initCoord :: (Int, Int)
-initCoord = (10, 10)
-
 renderTree :: RefMonad m t
-  => Dynamic t NodeMap -> m (Event t CanvasMouseEvents)
-renderTree nodeMap =
-  let 
-    f k n = viewNode n (constDyn (10,20+ k*20))
-  in do
-     -- listViewWithKey
-     --  (k -> Dynamic t v -> m (Event t a)) -> m (Event t (Map k a))
-     evMap <- listViewWithKey nodeMap f 
-     let ev = fmap (snd.head.Map.toList) evMap
-         
-     return ev
+  => Dynamic t MindMap
+  -> m (Event t CanvasMouseEvents)
+renderTree mindMapDyn = do
+  let nodeCoords = fmap getNodeCoords mindMapDyn
+  evListDyn <- simpleList nodeCoords viewNode
+  return $ switchPromptlyDyn $ fmap leftmost evListDyn
 
 
 -- editNode :: Dynamic t (Text, Coords) -> m ()
@@ -349,12 +327,13 @@ viewNode :: ( DomBuilder t m
            , MonadHold t m
            , PostBuild t m
            )
-  => Dynamic t Node
-  -> Dynamic t Coords
+  => Dynamic t (Node, Coords)
   -> m (Event t CanvasMouseEvents)
 
-viewNode node coord = do
-  let dynAttr = (<>) <$> (f1 <$> node) <*> (f2 <$> coord)
+viewNode nodeCoord = do
+  let node = fmap fst nodeCoord
+      coord = fmap snd nodeCoord
+      dynAttr = (<>) <$> (f1 <$> node) <*> (f2 <$> coord)
 
       f1 n = let cl = if nodeSelected n then "red" else "black"
              in ("fill" =: cl)
