@@ -29,7 +29,7 @@ data Direction = LeftD | RightD
 --
 -- For simplicity the horizontal position is kept constant
 
-getNodeCoords :: MindMap -> [(Node, Coords)]
+getNodeCoords :: MindMap -> Map NodeId (Node, Coords)
 getNodeCoords mm = coords
   where
     -- Input Stuff
@@ -50,8 +50,8 @@ getNodeCoords mm = coords
         (Just d) = Map.lookup n dirMap
 
     -- Output Stuff
-    coords = map f nodes
-      where f n = (node n, (ceiling (fst p), ceiling (snd p)))
+    coords = Map.fromList $ map f nodes
+      where f n = (n, (node n, (ceiling (fst p), ceiling (snd p))))
               where p = absPos n
  
     absPos 0 = rootCoord

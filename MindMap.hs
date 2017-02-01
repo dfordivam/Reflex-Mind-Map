@@ -295,14 +295,13 @@ drawCanvas mindMapDyn en = do
               fmap canvas mindMapDyn
       
   (elm, ev) <- elDynAttrNS' svgns "svg" svgAttr $ do
-    canvasMouseEv <- renderTree mindMapDyn
+    canvasMouseEv <- renderTree mindMapDyn en
 
     let mouseEvent = tag (constant (100,100)) canvasMouseEv
     -- mouseEvent <- wrapDomEvent 
     --   (_element_raw elm) 
     --   (onEventName Mousemove) 
     --   mouseOffsetXY
-
     let dbgInfo = fmap CanvasDebugInfo mouseEvent
 
     return (canvasMouseEv, dbgInfo)
@@ -311,14 +310,100 @@ drawCanvas mindMapDyn en = do
 
 renderTree :: RefMonad m t
   => Dynamic t MindMap
+  -> Dynamic t EditNode
   -> m (Event t CanvasMouseEvents)
-renderTree mindMapDyn = do
-  let nodeCoords = fmap getNodeCoords mindMapDyn
-  evListDyn <- simpleList nodeCoords viewNode
-  return $ switchPromptlyDyn $ fmap leftmost evListDyn
+renderTree mindMapDyn editNodeDyn = do
+  let 
+      -- nodeCoords :: Dynamic t (Map NodeId (Node, Coords))
+      nodeCoords = fmap getNodeCoords mindMapDyn
+
+      -- Take edit node value and decide render function
+      -- f (m,e) = Map.mapWithKey 
+      --   (\k a -> (a
+      --    , if (Just k) == e then editNode else viewNode)) m
+
+      -- r :: Dynamic t Map NodeId ((Node, Coords), 
+      --   (Dynamic t (Node, Coords) -> m (Event t CanvasMouseEvents)))
+      -- r = fmap f d
+
+      -- g :: Dynamic t ((Node, Coords), 
+      --   (Dynamic t (Node, Coords) -> m (Event t CanvasMouseEvents)))
+      --   -> m (Event t CanvasMouseEvents)
+      -- g d = fmap coincidence $ dyn h
+      --   where
+      --     -- v :: Dynamic t (Node, Coords)
+      --     -- f :: Dynamic t (Dynamic t (Node, Coords) -> m (Event t CanvasMouseEvents))
+      --     (v, f) = splitDyn d
+      --     
+      --     -- h :: Dynamic t (m (Event t CanvasMouseEvents))
+      --     h = fmap (\f' -> f' v) f
+
+  evMap <- list nodeCoords (renderNode editNodeDyn)
+  return $ switchPromptlyDyn $ fmap leftmost
+    $ fmap (map snd) $ fmap (Map.toList) evMap
+
+renderNode :: ( DomBuilder t m
+           , DomBuilderSpace m ~ GhcjsDomSpace
+           , MonadFix m
+           , MonadHold t m
+           , PostBuild t m
+           )
+  => Dynamic t EditNode
+  -> Dynamic t (Node, Coords)
+  -> m (Event t CanvasMouseEvents)
+
+renderNode e v = do
+  val <- dyn $ fmap f d
+  return $ coincidence val
+  where
+    -- d :: Dynamic t (Map NodeId (Node, Coords) , EditNode)
+    d = zipDynWith (,) e v
+
+    f (e',v') = if (e' == (Just (nodeId $ fst v')))
+                  then editNode v
+                  else viewNode v
 
 
--- editNode :: Dynamic t (Text, Coords) -> m ()
+editNode :: ( DomBuilder t m
+           , DomBuilderSpace m ~ GhcjsDomSpace
+           , MonadFix m
+           , MonadHold t m
+           , PostBuild t m
+           )
+  => Dynamic t (Node, Coords)
+  -> m (Event t CanvasMouseEvents)
+
+editNode nodeCoord = do
+  let node = fmap fst nodeCoord
+      coord = fmap snd nodeCoord
+      dynAttr = (<>) <$> (f1 <$> node) <*> (f2 <$> coord)
+
+      f1 n = let cl = if nodeSelected n then "red" else "black"
+             in ("fill" =: cl)
+
+      f2 (x,y) = ("x" =: showT x <> "y" =: showT y)
+      
+      dynT = fmap nodeContent node
+ 
+  (t,_) <- elDynAttrNS' svgns "text" dynAttr  $ do
+    dynText dynT
+
+
+  let selectEvent = domEvent Click t
+      dblClick = domEvent Dblclick t
+
+      ev1 = tag (current $ fmap nodeId node) selectEvent
+      ev2 = tag (current $ fmap nodeId node) dblClick
+
+      ev1' = fmap (\i -> NodeClicked i) ev1
+      ev2' = fmap (\i -> NodeDoubleClicked i) ev2
+
+  --elDynAttr "foreignObject" attr $ do
+  --  _ <- elDynAttrNS' xmlns "body" (constDyn Map.empty) $
+  --    el "form" $
+  --      elAttr "input" ("type" =: "text") $ return ()
+  return $ leftmost [ev2', ev1']
+
 
 -- Output : Node select event
 viewNode :: ( DomBuilder t m
