@@ -79,7 +79,7 @@ getNodeCoords mm = coords
               (40 + (T.length $ nodeContent $ node n))
 
     -- Relative to parent pos
-    vPos n = p * (h/p) + o - p/2
+    vPos n = h/2 + o - p/2
       where p = height (parent n)
             h = height n
             o = foldl (+) 0 (map height $ beforeSiblings n)
