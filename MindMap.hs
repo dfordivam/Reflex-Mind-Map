@@ -159,7 +159,7 @@ mindMapWidget doc = do
         mindMapDyn editNodeDyn
 
       -- (a -> b -> b) -> b -> Event t a -> m (Dynamic t b)
-      dynData <- foldDyn handleEvent
+      dynData <- foldDynMaybe handleEvent
         (SelectedNode 0, mindMapOrig) canvasEv
       
       let 
@@ -199,8 +199,10 @@ keypressEvent x = case (NE.head x) of
 handleEvent ::
      CanvasEvent
   -> (AppState, MindMap)
-  -> (AppState, MindMap)
-handleEvent ev (appState, mindMap) =
+  -> Maybe (AppState, MindMap)
+handleEvent (KeyPressEvent _) a@(EditingNode _,_) = Nothing  -- Ignore keypress events when editing
+  
+handleEvent ev (appState, mindMap) = Just $
   case ev of
     CanvasNodeEvents (NodeClicked n) ->
       (SelectedNode n, mindMap {nodeMap = newNodes})
