@@ -353,13 +353,14 @@ renderNode :: ( DomBuilder t m
   -> m (Event t CanvasMouseEvents)
 
 renderNode e v = do
-  val <- dyn $ fmap f d
-  return $ coincidence val
+  val <- dyn $ d
+  ev <- switchPromptly never val
+  return ev
   where
     -- d :: Dynamic t (Map NodeId (Node, Coords) , EditNode)
-    d = zipDynWith (,) e v
+    d = zipDynWith f e v
 
-    f (e',v') = if (e' == (Just (nodeId $ fst v')))
+    f e' v' = if (e' == (Just (nodeId $ fst v')))
                   then editNode v
                   else viewNode v
 
