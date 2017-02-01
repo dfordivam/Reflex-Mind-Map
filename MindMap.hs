@@ -78,14 +78,15 @@ data AppState =
   deriving (Show, Eq)
 
 data CanvasEvent = 
-    CanvasMouseEvents CanvasMouseEvents
+    CanvasNodeEvents CanvasNodeEvents
   | KeyPressEvent KeyPressEvent
   deriving (Show)
 
-data CanvasMouseEvents = 
+data CanvasNodeEvents = 
     NodeClicked NodeId
   | NodeDoubleClicked NodeId
   | CanvasClicked
+  | NodeEditText NodeId Text
   deriving (Show)
 
 data KeyPressEvent =
@@ -175,7 +176,7 @@ mindMapWidget doc = do
 
         keypressEv = fforMaybe kev keypressEvent
 
-        clickEvent' = fmap CanvasMouseEvents clickEvent
+        clickEvent' = fmap CanvasNodeEvents clickEvent
         keybEv' = fmap KeyPressEvent keypressEv
 
         canvasEv' = leftmost [clickEvent',keybEv']
@@ -201,23 +202,29 @@ handleEvent ::
   -> (AppState, MindMap)
 handleEvent ev (appState, mindMap) =
   case ev of
-    CanvasMouseEvents (NodeClicked n) ->
+    CanvasNodeEvents (NodeClicked n) ->
       (SelectedNode n, mindMap {nodeMap = newNodes})
       where
         newNodes = Map.mapWithKey f nodes
         f k a = a {nodeSelected = (k == n)}
       
-    CanvasMouseEvents (NodeDoubleClicked n) ->
+    CanvasNodeEvents (NodeDoubleClicked n) ->
       (EditingNode n, mindMap {nodeMap = newNodes})
       where
         newNodes = Map.mapWithKey f nodes
         f k a = a {nodeSelected = False}
 
-    CanvasMouseEvents CanvasClicked ->
+    CanvasNodeEvents CanvasClicked ->
       (SelectedNode n, mindMap {nodeMap = newNodes})
       where
         newNodes = Map.mapWithKey f nodes
         f k a = a {nodeSelected = False}
+
+    CanvasNodeEvents (NodeEditText n txt) ->
+      (SelectedNode n, mindMap {nodeMap = newNodes})
+      where
+        newNodes = Map.update
+          (\a -> Just $ a {nodeSelected = True, nodeContent = txt}) n nodes
 
     KeyPressEvent NodeCreate ->
       (EditingNode $ nodeId newNode, mindMap {nodeMap = newNodes, 
@@ -258,7 +265,7 @@ handleEvent ev (appState, mindMap) =
 
 
 -- handleClickEvent :: (
---      Event t CanvasMouseEvents
+--      Event t CanvasNodeEvents
 --   -> Dynamic t NodeMap
 --   -> (Event t EditNode, Event t NodeMap)
 
@@ -273,7 +280,7 @@ drawCanvas :: ( DomBuilder t m
            )
   => Dynamic t MindMap 
   -> Dynamic t EditNode -- Current node to edit
-  -> m (Event t CanvasMouseEvents, Event t DebugInfo)
+  -> m (Event t CanvasNodeEvents, Event t DebugInfo)
 
 drawCanvas mindMapDyn en = do
 
@@ -311,7 +318,7 @@ drawCanvas mindMapDyn en = do
 renderTree :: RefMonad m t
   => Dynamic t MindMap
   -> Dynamic t EditNode
-  -> m (Event t CanvasMouseEvents)
+  -> m (Event t CanvasNodeEvents)
 renderTree mindMapDyn editNodeDyn = do
   let 
       -- nodeCoords :: Dynamic t (Map NodeId (Node, Coords))
@@ -323,19 +330,19 @@ renderTree mindMapDyn editNodeDyn = do
       --    , if (Just k) == e then editNode else viewNode)) m
 
       -- r :: Dynamic t Map NodeId ((Node, Coords), 
-      --   (Dynamic t (Node, Coords) -> m (Event t CanvasMouseEvents)))
+      --   (Dynamic t (Node, Coords) -> m (Event t CanvasNodeEvents)))
       -- r = fmap f d
 
       -- g :: Dynamic t ((Node, Coords), 
-      --   (Dynamic t (Node, Coords) -> m (Event t CanvasMouseEvents)))
-      --   -> m (Event t CanvasMouseEvents)
+      --   (Dynamic t (Node, Coords) -> m (Event t CanvasNodeEvents)))
+      --   -> m (Event t CanvasNodeEvents)
       -- g d = fmap coincidence $ dyn h
       --   where
       --     -- v :: Dynamic t (Node, Coords)
-      --     -- f :: Dynamic t (Dynamic t (Node, Coords) -> m (Event t CanvasMouseEvents))
+      --     -- f :: Dynamic t (Dynamic t (Node, Coords) -> m (Event t CanvasNodeEvents))
       --     (v, f) = splitDyn d
       --     
-      --     -- h :: Dynamic t (m (Event t CanvasMouseEvents))
+      --     -- h :: Dynamic t (m (Event t CanvasNodeEvents))
       --     h = fmap (\f' -> f' v) f
 
   evMap <- list nodeCoords (renderNode editNodeDyn)
@@ -350,7 +357,7 @@ renderNode :: ( DomBuilder t m
            )
   => Dynamic t EditNode
   -> Dynamic t (Node, Coords)
-  -> m (Event t CanvasMouseEvents)
+  -> m (Event t CanvasNodeEvents)
 
 renderNode e v = do
   val <- dyn $ d
@@ -361,8 +368,8 @@ renderNode e v = do
     d = zipDynWith f e v
 
     f e' v' = if (e' == (Just (nodeId $ fst v')))
-                  then editNode v
-                  else viewNode v
+                  then editNode v'
+                  else viewNode v'
 
 
 editNode :: ( DomBuilder t m
@@ -371,39 +378,40 @@ editNode :: ( DomBuilder t m
            , MonadHold t m
            , PostBuild t m
            )
-  => Dynamic t (Node, Coords)
-  -> m (Event t CanvasMouseEvents)
+  => (Node, Coords)
+  -> m (Event t CanvasNodeEvents)
 
-editNode nodeCoord = do
-  let node = fmap fst nodeCoord
-      coord = fmap snd nodeCoord
-      dynAttr = (<>) <$> (f1 <$> node) <*> (f2 <$> coord)
+editNode (node, coord)= do
+  let 
+      attr = constDyn (f2 coord)
 
-      f1 n = let cl = if nodeSelected n then "red" else "black"
-             in ("fill" =: cl)
-
-      f2 (x,y) = ("x" =: showT x <> "y" =: showT y)
+      f2 (x,y) = ("x" =: showT x <> "y" =: showT y) <>
+        ("requiredExtensions" =: "http://www.w3.org/1999/xhtml")
+        <> ("height" =: "40") <> ("width" =: "60")
       
-      dynT = fmap nodeContent node
- 
-  (t,_) <- elDynAttrNS' svgns "text" dynAttr  $ do
-    dynText dynT
+  (_, ev) <- elDynAttrNS' svgns "foreignObject" attr $ do
+      -- Create the textbox; it will be cleared whenever the user presses enter
+      rec let newValueEntered = ffilter (keyCodeIs Enter) (_textInput_keypress descriptionBox)
+          descriptionBox <- textInput $ def
+            & textInputConfig_setValue .~ fmap (const "") newValueEntered
+            & textInputConfig_attributes .~ 
+            constDyn (mconcat [ "class" =: "edit-node"
+                , "placeholder" =: "Node"
+            ])
+
+      -- Request focus on this element when the widget is done being built
+--      schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
+      let -- | Get the current value of the textbox whenever the user hits enter
+          newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
+      -- Set focus when the user enters a new Task
+--      performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
+      return $ fmap (\d -> NodeEditText (nodeId node) d) newValue
 
 
-  let selectEvent = domEvent Click t
-      dblClick = domEvent Dblclick t
+  return $ ev
 
-      ev1 = tag (current $ fmap nodeId node) selectEvent
-      ev2 = tag (current $ fmap nodeId node) dblClick
-
-      ev1' = fmap (\i -> NodeClicked i) ev1
-      ev2' = fmap (\i -> NodeDoubleClicked i) ev2
-
-  --elDynAttr "foreignObject" attr $ do
-  --  _ <- elDynAttrNS' xmlns "body" (constDyn Map.empty) $
-  --    el "form" $
-  --      elAttr "input" ("type" =: "text") $ return ()
-  return $ leftmost [ev2', ev1']
+keyCodeIs :: Key -> KeyCode -> Bool
+keyCodeIs k c = keyCodeLookup c == k
 
 
 -- Output : Node select event
@@ -413,30 +421,28 @@ viewNode :: ( DomBuilder t m
            , MonadHold t m
            , PostBuild t m
            )
-  => Dynamic t (Node, Coords)
-  -> m (Event t CanvasMouseEvents)
+  => (Node, Coords)
+  -> m (Event t CanvasNodeEvents)
 
-viewNode nodeCoord = do
-  let node = fmap fst nodeCoord
-      coord = fmap snd nodeCoord
-      dynAttr = (<>) <$> (f1 <$> node) <*> (f2 <$> coord)
+viewNode (node,coord) = do
+  let 
+      attr = constDyn $ f1 node <> f2 coord
 
       f1 n = let cl = if nodeSelected n then "red" else "black"
              in ("fill" =: cl)
 
       f2 (x,y) = ("x" =: showT x <> "y" =: showT y)
       
-      dynT = fmap nodeContent node
  
-  (t,_) <- elDynAttrNS' svgns "text" dynAttr  $ do
-    dynText dynT
+  (t,_) <- elDynAttrNS' svgns "text" attr  $ do
+    text $ nodeContent node
 
 
   let selectEvent = domEvent Click t
       dblClick = domEvent Dblclick t
 
-      ev1 = tag (current $ fmap nodeId node) selectEvent
-      ev2 = tag (current $ fmap nodeId node) dblClick
+      ev1 = fmap (const $ nodeId node) selectEvent
+      ev2 = fmap (const $ nodeId node) dblClick
 
       ev1' = fmap (\i -> NodeClicked i) ev1
       ev2' = fmap (\i -> NodeDoubleClicked i) ev2
