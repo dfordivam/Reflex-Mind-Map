@@ -47,11 +47,11 @@ getKey = \case
   39 -> Just ArrowRight
   40 -> Just ArrowDown
   9  -> Just Tab
-  32 -> Just Space
+  --32 -> Just Space
   --13 -> Just Enter
   27 -> Just Escape
-  8  -> Just Backspace
-  46 -> Just Delete
+  --8  -> Just Backspace
+  --46 -> Just Delete
   _  -> Nothing
 
 
