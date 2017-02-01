@@ -395,10 +395,12 @@ editNode (node, coord)= do
       -- Create the textbox; it will be cleared whenever the user presses enter
       rec let newValueEntered = ffilter (keyCodeIs Enter) (_textInput_keypress descriptionBox)
           descriptionBox <- textInput $ def
+            & textInputConfig_initialValue .~ (nodeContent node)
             & textInputConfig_setValue .~ fmap (const "") newValueEntered
             & textInputConfig_attributes .~ 
             constDyn (mconcat [ "class" =: "edit-node"
                 , "placeholder" =: "Node"
+                , "autofocus" =: ""
             ])
 
       -- Request focus on this element when the widget is done being built
