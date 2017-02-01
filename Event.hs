@@ -48,7 +48,7 @@ getKey = \case
   40 -> Just ArrowDown
   9  -> Just Tab
   32 -> Just Space
-  --13 -> Just Enter
+  13 -> Just Enter
   27 -> Just Escape
   8  -> Just Backspace
   46 -> Just Delete
@@ -68,7 +68,7 @@ globalKeyEvents doc = Dom.mergeList <$> sequence
           e    <- lift $ event
           mods <- lift $ Modifiers <$> getCtrlKey e <*> getAltKey e <*> getShiftKey e
           lift $ do
-            stopPropagation
+            --stopPropagation
             preventDefault
           return $ KeyStroke t k mods
 
