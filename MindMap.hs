@@ -306,17 +306,76 @@ drawCanvas mindMapDyn en = do
 
   return ev
 
+getNode i mm = fmap f mm
+  where 
+    f mm' = n
+      where
+        Just n = Map.lookup i (nodeMap mm')
+
+getChildren n mm = zipDynWith f n mm
+  where 
+    f n' mm' = map g ns
+      where
+        Just ns = Map.lookup i (nodeTree mm')
+        i = nodeId n'
+
+        g i = n
+          where
+            Just n = Map.lookup i (nodeMap mm')
+
+
 renderTree :: RefMonad m t
   => Dynamic t MindMap
   -> Dynamic t EditNode
   -> m (Event t CanvasNodeEvents)
 renderTree mindMapDyn editNodeDyn = do
   let 
-      nodeCoords = fmap getNodeCoords mindMapDyn
+      --nodeCoords = fmap getNodeCoords mindMapDyn
 
-  evMap <- list nodeCoords (renderNode editNodeDyn)
-  return $ switchPromptlyDyn $ fmap leftmost
-    $ fmap (map snd) $ fmap (Map.toList) evMap
+      rootNode = getNode 0 mindMapDyn
+  ev1 <- renderOnlyNode editNodeDyn rootNode
+  ev2 <- renderChildren editNodeDyn mindMapDyn (getChildren rootNode mindMapDyn)
+  
+  return (leftmost [ev1, ev2])
+
+renderChildren :: ( DomBuilder t m
+           , DomBuilderSpace m ~ GhcjsDomSpace
+           , MonadFix m
+           , MonadHold t m
+           , PostBuild t m
+           )
+  => Dynamic t EditNode
+  -> Dynamic t MindMap
+  -> Dynamic t [Node]
+  -> m (Event t CanvasNodeEvents)
+
+renderChildren e mm ns = do
+  evs <- simpleList ns (renderNode e mm)
+  let d = fmap leftmost evs
+  return $ switchPromptlyDyn d
+
+renderOnlyNode :: ( DomBuilder t m
+           , DomBuilderSpace m ~ GhcjsDomSpace
+           , MonadFix m
+           , MonadHold t m
+           , PostBuild t m
+           )
+  => Dynamic t EditNode
+  -> Dynamic t Node
+  -> m (Event t CanvasNodeEvents)
+
+renderOnlyNode e n = do
+  val <- dyn $ d
+  ev <- switchPromptly never val
+  return ev
+  where
+    -- d :: Dynamic t (Map NodeId (Node, Coords) , EditNode)
+    d = zipDynWith f e n
+    
+    f e' n' = if (e' == (Just (nodeId $ n')))
+                  then editNode n'
+                  else viewNode n'
+    
 
 renderNode :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
@@ -325,21 +384,21 @@ renderNode :: ( DomBuilder t m
            , PostBuild t m
            )
   => Dynamic t EditNode
-  -> Dynamic t (Node, Coords)
+  -> Dynamic t MindMap
+  -> Dynamic t Node
   -> m (Event t CanvasNodeEvents)
 
-renderNode e v = do
-  val <- dyn $ d
-  ev <- switchPromptly never val
-  return ev
+renderNode e mm n = do
+  ev <- renderOnlyNode e n
+  ev2 <- el "ul" $ do
+    val2 <- dyn $ fmap g n
+    ev2 <- switchPromptly never val2
+    return ev2
+  return $ leftmost [ev, ev2]
   where
-    -- d :: Dynamic t (Map NodeId (Node, Coords) , EditNode)
-    d = zipDynWith f e v
-
-    f e' v' = if (e' == (Just (nodeId $ fst v')))
-                  then editNode v'
-                  else viewNode v'
-
+    g n' = if nodeOpen n'
+            then renderChildren e mm (getChildren n mm)
+            else return never
 
 editNode :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
@@ -347,10 +406,10 @@ editNode :: ( DomBuilder t m
            , MonadHold t m
            , PostBuild t m
            )
-  => (Node, Coords)
+  => Node
   -> m (Event t CanvasNodeEvents)
 
-editNode (node, coord)= do
+editNode node= do
   let 
       attr = Map.empty
 
@@ -383,10 +442,10 @@ viewNode :: ( DomBuilder t m
            , MonadHold t m
            , PostBuild t m
            )
-  => (Node, Coords)
+  => Node
   -> m (Event t CanvasNodeEvents)
 
-viewNode (node,coord) = do
+viewNode node = do
   let 
       attr = let cl = if nodeSelected node
                         then "node-selected"
