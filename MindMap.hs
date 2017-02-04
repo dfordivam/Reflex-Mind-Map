@@ -133,14 +133,22 @@ mindMapWidget doc = do
 
   let mindMapOrig = MindMap (Canvas 600 400) nt nm
       nt = Map.fromList [
-                  (0, [1])
-                , (1, [2])
-                , (2, [])
+                  (0, [1,2])
+                , (1, [3,4])
+                , (2, [5])
+                , (3, [6])
+                , (4, [])
+                , (5, [])
+                , (6, [])
                 ]
       nm = Map.fromList [
                   (0, Node 0 0 "0" False True)
                 , (1, Node 1 0 "1" False True)
-                , (2, Node 2 1 "2" False True)
+                , (2, Node 2 0 "2" False True)
+                , (3, Node 3 1 "3" False True)
+                , (4, Node 4 1 "4" False True)
+                , (5, Node 5 2 "5" False True)
+                , (6, Node 6 3 "6" False True)
                 ]
   el "div" $ do
     text "Some text"
@@ -288,11 +296,11 @@ drawCanvas mindMapDyn en = do
 
   let 
 
-      attr = constDyn Map.empty
+      attr = ("class" =: "mindmap-canvas")
       csize = fmap (\c -> (canvasWidth c, canvasHieght c)) $
               fmap canvas mindMapDyn
       
-  ev <- elDynAttr "ul" attr $ do
+  ev <- elAttr "ul" attr $ do
     canvasMouseEv <- renderTree mindMapDyn en
 
     let mouseEvent = tag (constant (100,100)) canvasMouseEv
@@ -333,8 +341,14 @@ renderTree mindMapDyn editNodeDyn = do
       --nodeCoords = fmap getNodeCoords mindMapDyn
 
       rootNode = getNode 0 mindMapDyn
-  ev1 <- renderOnlyNode editNodeDyn rootNode
-  ev2 <- renderChildren editNodeDyn mindMapDyn (getChildren rootNode mindMapDyn)
+
+  ev1 <- elAttr "li" ("class" =: "mindmap-rootnode") $
+    renderOnlyNode editNodeDyn rootNode
+
+  ev2 <- el "li" $ 
+    elAttr "ul" ("class" =: "mindmap-children-right") $
+    renderChildren editNodeDyn mindMapDyn
+      (getChildren rootNode mindMapDyn)
   
   return (leftmost [ev1, ev2])
 
@@ -388,13 +402,16 @@ renderNode :: ( DomBuilder t m
   -> Dynamic t Node
   -> m (Event t CanvasNodeEvents)
 
-renderNode e mm n = do
-  ev <- renderOnlyNode e n
-  ev2 <- el "ul" $ do
-    val2 <- dyn $ fmap g n
-    ev2 <- switchPromptly never val2
-    return ev2
-  return $ leftmost [ev, ev2]
+renderNode e mm n =
+  el "li" $
+  elAttr "ul" ("class" =: "mindmap-childtree") $ do
+    ev <- renderOnlyNode e n
+    ev2 <- el "li" $ 
+      elAttr "ul" ("class" =: "mindmap-children") $ do
+      val2 <- dyn $ fmap g n
+      switchPromptly never val2
+      
+    return $ leftmost [ev, ev2]
   where
     g n' = if nodeOpen n'
             then renderChildren e mm (getChildren n mm)
@@ -411,7 +428,7 @@ editNode :: ( DomBuilder t m
 
 editNode node= do
   let 
-      attr = Map.empty
+      attr = ("class" =: "mindmap-editnode")
 
   (_, ev) <- elAttr' "li" attr $ do
       -- Create the textbox; it will be cleared whenever the user presses enter
@@ -448,8 +465,8 @@ viewNode :: ( DomBuilder t m
 viewNode node = do
   let 
       attr = let cl = if nodeSelected node
-                        then "node-selected"
-                        else "node-unselected"
+                        then "mindmap-node-selected"
+                        else "mindmap-node-unselected"
              in ("class" =: cl)
 
   (t,_) <- elAttr' "li" attr $ do

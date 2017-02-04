@@ -1,6 +1,76 @@
+ul {
+  list-style-type: none;
+  padding : 0;
+  margin : 0;
+}
+
+li {
+  list-style-type: none;
+  padding : 0;
+  margin : 0;
+}
+
 .textboxselected {
   outline: #00FF00 dotted thick;
 }
 .textbox {
   outline: #0000FF dotted thin;
 }
+
+.mindmap-canvas {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  
+  display: -webkit-box;
+  display: -moz-box;
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+  
+  -webkit-flex-flow: row nowrap;
+  justify-content: center;
+}
+
+.mindmap-rootnode {
+  align-self: center;
+}
+
+.mindmap-children-right {
+  padding: 5px;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.mindmap-childtree {
+  padding: 5px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+.mindmap-children {
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mindmap-editnode {
+}
+
+.mindmap-node-selected {
+  color: black;
+  font-weight: bold;
+  text-align: center;
+  align-self: center;
+}
+
+.mindmap-node-unselected {
+  color: black;
+  text-align: center;
+  align-self: center;
+}
+
+
