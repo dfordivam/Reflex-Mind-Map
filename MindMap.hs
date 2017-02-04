@@ -286,24 +286,13 @@ drawCanvas :: ( DomBuilder t m
 
 drawCanvas mindMapDyn en = do
 
-  
-  -- Construct tree
-  -- Render nodes at proper position
-  --
-  -- Simple render a list
   let 
-      svgAttr = ffor csize $ (\(x,y) -> 
-                  Map.fromList [
-                    ("xmlns", "http://www.w3.org/2000/svg")
-                  , ("width", showT x)
-                  , ("height", showT y)
-                  , ("style", "border:solid; margin:4em")
-                  ])
 
+      attr = constDyn Map.empty
       csize = fmap (\c -> (canvasWidth c, canvasHieght c)) $
               fmap canvas mindMapDyn
       
-  (elm, ev) <- elDynAttrNS' svgns "svg" svgAttr $ do
+  ev <- elDynAttr "ul" attr $ do
     canvasMouseEv <- renderTree mindMapDyn en
 
     let mouseEvent = tag (constant (100,100)) canvasMouseEv
@@ -323,29 +312,7 @@ renderTree :: RefMonad m t
   -> m (Event t CanvasNodeEvents)
 renderTree mindMapDyn editNodeDyn = do
   let 
-      -- nodeCoords :: Dynamic t (Map NodeId (Node, Coords))
       nodeCoords = fmap getNodeCoords mindMapDyn
-
-      -- Take edit node value and decide render function
-      -- f (m,e) = Map.mapWithKey 
-      --   (\k a -> (a
-      --    , if (Just k) == e then editNode else viewNode)) m
-
-      -- r :: Dynamic t Map NodeId ((Node, Coords), 
-      --   (Dynamic t (Node, Coords) -> m (Event t CanvasNodeEvents)))
-      -- r = fmap f d
-
-      -- g :: Dynamic t ((Node, Coords), 
-      --   (Dynamic t (Node, Coords) -> m (Event t CanvasNodeEvents)))
-      --   -> m (Event t CanvasNodeEvents)
-      -- g d = fmap coincidence $ dyn h
-      --   where
-      --     -- v :: Dynamic t (Node, Coords)
-      --     -- f :: Dynamic t (Dynamic t (Node, Coords) -> m (Event t CanvasNodeEvents))
-      --     (v, f) = splitDyn d
-      --     
-      --     -- h :: Dynamic t (m (Event t CanvasNodeEvents))
-      --     h = fmap (\f' -> f' v) f
 
   evMap <- list nodeCoords (renderNode editNodeDyn)
   return $ switchPromptlyDyn $ fmap leftmost
@@ -385,13 +352,9 @@ editNode :: ( DomBuilder t m
 
 editNode (node, coord)= do
   let 
-      attr = constDyn (f2 coord)
+      attr = Map.empty
 
-      f2 (x,y) = ("x" =: showT x <> "y" =: showT y) <>
-        ("requiredExtensions" =: "http://www.w3.org/1999/xhtml")
-        <> ("height" =: "40") <> ("width" =: "60")
-      
-  (_, ev) <- elDynAttrNS' svgns "foreignObject" attr $ do
+  (_, ev) <- elAttr' "li" attr $ do
       -- Create the textbox; it will be cleared whenever the user presses enter
       rec let newValueEntered = ffilter (keyCodeIs Enter) (_textInput_keypress descriptionBox)
           descriptionBox <- textInput $ def
@@ -407,15 +370,10 @@ editNode (node, coord)= do
 --      schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
       let -- | Get the current value of the textbox whenever the user hits enter
           newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
-      -- Set focus when the user enters a new Task
---      performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
       return $ fmap (\d -> NodeEditText (nodeId node) d) newValue
 
 
   return $ ev
-
-keyCodeIs :: Key -> KeyCode -> Bool
-keyCodeIs k c = keyCodeLookup c == k
 
 
 -- Output : Node select event
@@ -430,15 +388,12 @@ viewNode :: ( DomBuilder t m
 
 viewNode (node,coord) = do
   let 
-      attr = constDyn $ f1 node <> f2 coord
+      attr = let cl = if nodeSelected node
+                        then "node-selected"
+                        else "node-unselected"
+             in ("class" =: cl)
 
-      f1 n = let cl = if nodeSelected n then "red" else "black"
-             in ("fill" =: cl)
-
-      f2 (x,y) = ("x" =: showT x <> "y" =: showT y)
-      
- 
-  (t,_) <- elDynAttrNS' svgns "text" attr  $ do
+  (t,_) <- elAttr' "li" attr $ do
     text $ nodeContent node
 
 
@@ -451,55 +406,10 @@ viewNode (node,coord) = do
       ev1' = fmap (\i -> NodeClicked i) ev1
       ev2' = fmap (\i -> NodeDoubleClicked i) ev2
 
-  --elDynAttr "foreignObject" attr $ do
-  --  _ <- elDynAttrNS' xmlns "body" (constDyn Map.empty) $
-  --    el "form" $
-  --      elAttr "input" ("type" =: "text") $ return ()
   return $ leftmost [ev2', ev1']
 
--- 
--- canvasContents :: ( DomBuilder t m
---            , DomBuilderSpace m ~ GhcjsDomSpace
---            , MonadFix m
---            , MonadHold t m
---            , PostBuild t m
---            )
---   => Dynamic t Coords -> m ()
--- canvasContents cord = do
---   let attr = fmap (\(x,y) ->
---           (Map.fromList [
---             ("x", showT x)
---           , ("y", showT y)
---           , ("width", "50")
---           , ("height", "30")
---           --, ("fill", "red")
---           ])) cord
---   --elDynAttr "text" attr
---   --  $ text "Node Text"
---     return ()
--- 
--- viewNodeCon :: ( DomBuilder t m
---            , DomBuilderSpace m ~ GhcjsDomSpace
---            , MonadFix m
---            , MonadHold t m
---            , PostBuild t m
---            )
---   => Node -> m (Event t Node)
--- 
--- viewNodeCon node = do
---   let cl = if nodeSelected node then "textboxselected" else "textbox"
---       attr = ("class" =: cl)
- 
-
---  el "div" $ do
---    text "in viewNode"
---
---  (t,_) <- elAttr' "span" attr  $ do
---    text (nodeContent node)
---
---  let selectEvent = domEvent Click t
---
---  return $ fmap (\_ -> node {nodeSelected = not (nodeSelected node)}) selectEvent
+keyCodeIs :: Key -> KeyCode -> Bool
+keyCodeIs k c = keyCodeLookup c == k
 
 showT :: (Show a) => a -> T.Text
 showT = T.pack.show
