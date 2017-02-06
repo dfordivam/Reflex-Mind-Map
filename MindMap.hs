@@ -274,12 +274,6 @@ handleEvent ev (appState, mindMap) = Just $
     f (EditingNode n) =  n
 
 
--- handleClickEvent :: (
---      Event t CanvasNodeEvents
---   -> Dynamic t NodeMap
---   -> (Event t EditNode, Event t NodeMap)
-
-        
 -- 
 drawCanvas :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
@@ -314,12 +308,16 @@ drawCanvas mindMapDyn en = do
 
   return ev
 
+getNode :: Functor f => NodeId -> f MindMap -> f Node
 getNode i mm = fmap f mm
   where 
     f mm' = n
       where
         Just n = Map.lookup i (nodeMap mm')
 
+getChildren
+  :: Reflex t =>
+       Dynamic t Node -> Dynamic t MindMap -> Dynamic t [Node]
 getChildren n mm = zipDynWith f n mm
   where 
     f n' mm' = map g ns
@@ -489,10 +487,4 @@ keyCodeIs k c = keyCodeLookup c == k
 
 showT :: (Show a) => a -> T.Text
 showT = T.pack.show
-
-xmlns :: Maybe Text
-xmlns = (Just "http://www.w3.org/1999/xhtml")
-
-svgns :: Maybe Text
-svgns = (Just "http://www.w3.org/2000/svg")
 
