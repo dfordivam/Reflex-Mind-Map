@@ -96,6 +96,11 @@ data KeyPressEvent =
   | NodeCollapseToggle
   deriving (Show)
   
+data CssAttrs = CssAttrs {
+    selectedNode :: Int
+}
+  deriving (Show)
+
 data DebugInfo = CanvasDebugInfo {
     debugInfoMouseCoord :: (Int, Int)
 }
@@ -106,7 +111,8 @@ data DebugInfo = CanvasDebugInfo {
 
 main :: IO ()
 main = 
-  myMainWidgetWithCss $(embedFile "style.css") mindMapWidget
+  --myMainWidgetWithCss $(embedFile "style.css") mindMapWidget
+  mainWidgetWithHead' (headerCode, bodyCode)
 
 
 type RefMonad m t = (DomBuilder t m
@@ -118,18 +124,30 @@ type RefMonad m t = (DomBuilder t m
            , MonadSample t m
            )
 
--- Application
--- Handle Events from Canvas, Keyboard and propagate them back to Canvas
-mindMapWidget :: ( DomBuilder t m
+headerCode :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
            , MonadFix m
            , MonadHold t m
            , PostBuild t m
            , TriggerEvent t m
            )
-        => Document -> m ()
-mindMapWidget doc = do
-  kev <- E.globalKeyEvents doc
+        => (Dynamic t CssAttrs) -> m ()
+headerCode dynA = do
+  let t = ffor dynA (\(CssAttrs n) -> T.pack $
+        "." ++ (T.unpack (getNodeIdName n)) ++ " {color: red;}")
+  el "style" $ dynText t
+
+-- Application
+-- Handle Events from Canvas, Keyboard and propagate them back to Canvas
+bodyCode :: ( DomBuilder t m
+           , DomBuilderSpace m ~ GhcjsDomSpace
+           , MonadFix m
+           , MonadHold t m
+           , PostBuild t m
+           , TriggerEvent t m
+           )
+        => () -> m (Dynamic t CssAttrs)
+bodyCode _ = do
 
   let mindMapOrig = MindMap (Canvas 600 400) nt nm
       nt = Map.fromList [
@@ -150,6 +168,8 @@ mindMapWidget doc = do
                 , (5, Node 5 2 "5" False True)
                 , (6, Node 6 3 "6" False True)
                 ]
+      kev = never
+
   el "div" $ do
     text "Some text"
     kdyn <- holdDyn (NE.fromList [E.KeyPress 'a']) kev
@@ -158,7 +178,7 @@ mindMapWidget doc = do
     kpdyn <- holdDyn (NodeCreate) (fforMaybe kev keypressEvent)
     dynText $ fmap showT kpdyn
 
-  el "div" $ do
+  appStateDyn <- el "div" $ do
     rec 
       dynT <- holdDyn "Debug Info" $ fmap (showT) debugInfo
       dynT2 <- holdDyn "Node Clicked: " $ fmap (showT) clickEvent
@@ -194,7 +214,13 @@ mindMapWidget doc = do
       dynText dynT
       dynText dynT2
       return ()
-    return ()
+    return appStateDyn
+
+  let cssAttrDyn = ffor appStateDyn
+                    (\case
+                      SelectedNode n -> CssAttrs n
+                      EditingNode n -> CssAttrs n)
+  return cssAttrDyn
 
 keypressEvent :: NE.NonEmpty E.KeyEvent -> Maybe KeyPressEvent
 keypressEvent x = case (NE.head x) of
@@ -446,9 +472,10 @@ editNode node= do
           newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
       return $ fmap (\d -> NodeEditText (nodeId node) d) newValue
 
-
   return $ ev
 
+getNodeIdName :: Int -> Text
+getNodeIdName n = T.pack ("node" ++ show n)
 
 -- Output : Node select event
 viewNode :: ( DomBuilder t m
@@ -465,7 +492,8 @@ viewNode node = do
       attr = let cl = if nodeSelected node
                         then "mindmap-node-selected"
                         else "mindmap-node-unselected"
-             in ("class" =: cl)
+             in ("classs" =: cl) <> 
+                ("class" =: getNodeIdName (nodeId node))
 
   (t,_) <- elAttr' "li" attr $ do
     text $ nodeContent node
