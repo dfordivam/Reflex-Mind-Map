@@ -93,7 +93,6 @@ renderControlPanel :: ( DomBuilder t m
            , MonadFix m
            , MonadHold t m
            , PostBuild t m
-           , TriggerEvent t m
            )
         => 
      ()

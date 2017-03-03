@@ -25,6 +25,7 @@ library
   other-modules:
       Data
       View
+      Controller
 
   build-depends:
       base

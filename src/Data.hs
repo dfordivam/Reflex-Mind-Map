@@ -56,10 +56,14 @@ data ControlPanelEvent =
   | Delete
   | Cut
   | Paste
+  deriving (Show, Ord, Eq)
 
 data OpenToggleEv = OpenToggleEv NodeID
-data NodeEditEv = NodeEditEv NodeID Text
+  deriving (Show, Ord, Eq)
+data NodeEditEv = NodeEditEv Text NodeID
+  deriving (Show, Ord, Eq)
 
 data NodeEvent =
     SelectNodeEvent NodeID
+  deriving (Show, Ord, Eq)
 
