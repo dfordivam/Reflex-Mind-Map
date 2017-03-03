@@ -97,6 +97,6 @@ renderControlPanel :: ( DomBuilder t m
         => 
      ()
   -> m (Event t ControlPanelEvent)
-renderControlPanel = undefined
+renderControlPanel _ = return never
 showT :: (Show a) => a -> T.Text
 showT = T.pack.show

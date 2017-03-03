@@ -18,7 +18,7 @@ import qualified Data.Text as T
 import Data
 import View
   
-main :: ( DomBuilder t m
+mindMapWidget :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
            , MonadFix m
            , MonadHold t m
@@ -26,12 +26,18 @@ main :: ( DomBuilder t m
            )
         => 
   m ()
-main = do
-
-  let origNodeList = undefined
-      initState = undefined
+mindMapWidget = do
 
   rec
+
+    n1 <- createNode selNodeDyn openEv editEv nodePos
+            (NodeID 0) ("Root")
+
+    let 
+      origNodeList = (nodeID n1 =: n1)
+      mindMapInit = MindMap (800,600) origNodeList (nodeID n1 =: [])
+      initState = AppState (nodeID n1) (Map.empty)
+                    mindMapInit (nodeID n1 =: Just n1)
 
     ctrlEv <- renderControlPanel ()
 
@@ -76,28 +82,33 @@ main = do
          f (Left Data.Paste) = Just ()
          f _ = Nothing
 
-    n1 <- createNode selNodeDyn openEv editEv nodePos
-            (NodeID 0) ("Root")
     return ()
   return ()
 
 -- Try not to change Pos with selection events
-getPos ::
+getPos :: (Reflex t)
+  =>
      Dynamic t NodeTree
   -- -> Dynamic t NodeList
   -> Dynamic t NodePos
-getPos = undefined
+getPos tree = constDyn Map.empty 
 
 mainEventHandler ::
      AllEvents
   -> AppState t
   -> Maybe (AppState t)
-mainEventHandler = undefined
-  where
+mainEventHandler ev st =
+  case ev of
+    Right (SelectNodeEvent n) ->
+      if (n == selNode)
+        then Nothing
+        else Just (st {selectedNode = n})
 
-      -- Diff the map when Add, delete, cut, paste event
-      -- mapDiffEv :: Event t (Map NodeID (Maybe Node))
-      mapDiffEv = undefined -- diffMapNoEq m1 m2
+  where
+    selNode = selectedNode st
+    -- Diff the map when Add, delete, cut, paste event
+    -- mapDiffEv :: Event t (Map NodeID (Maybe Node))
+    mapDiffEv = undefined -- diffMapNoEq m1 m2
 
 createNode :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace

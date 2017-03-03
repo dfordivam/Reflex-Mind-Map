@@ -11,4 +11,6 @@ import qualified Data.Text as T
 import Reflex
 import Reflex.Dom
 
-main = undefined
+import qualified Controller
+
+main = mainWidget Controller.mindMapWidget
