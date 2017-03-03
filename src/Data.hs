@@ -17,10 +17,15 @@ newtype NodeID = NodeID { unNodeID :: Int }
 data Node t = Node {
     nodeID        :: NodeID
   , nodeContent   :: Dynamic t Text
-  , nodeSelected  :: Dynamic t Bool
+  , nodeState     :: Dynamic t NodeState
   , nodeOpen      :: Dynamic t Bool
   , nodePosition  :: Dynamic t (Maybe Position)
 }
+
+data NodeState =
+    NodeUnselected
+  | NodeSelected
+  | NodeEditing
 
 type NodeList t = Map NodeID (Node t)
 type NodeTree = Map NodeID [NodeID]
@@ -33,7 +38,7 @@ data MindMap t = MindMap {
 
 -- Control Data
 data AppState t = AppState {
-    selectedNode  :: NodeID
+    selectedNode  :: (NodeID, Bool) -- (Editing?)
   , nodePos       :: NodePos
   , mindMap       :: MindMap t
   -- This diff will trigger rerendering
@@ -41,8 +46,8 @@ data AppState t = AppState {
 }
 
 instance Show (AppState t) where
-  show st = show (selectedNode st) ++ show (nodePos st)
-            ++ " DiffKeys: " ++ show (Map.keys $ nodeListDiff st)
+  show st = show (selectedNode st) ++ " " ++ show (nodePos st)
+            ++ " DiffKeysNew: " ++ show (Map.keys $ nodeListDiff st)
 
 -- Events
 --

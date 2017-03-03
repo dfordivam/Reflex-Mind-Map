@@ -41,7 +41,7 @@ mindMapWidget = do
       origNodeList = (nodeID n1 =: n1) <> (nodeID n2 =: n2)
 
       mindMapInit = MindMap (800,600) origNodeList (nodeID n1 =: [nodeID n2])
-      initState = AppState (nodeID n1) (Map.empty)
+      initState = AppState (nodeID n1, False) (Map.empty)
                     mindMapInit ((nodeID n1 =: Just n1) <> (nodeID n2 =: Just n2))
 
     ctrlEv <- renderControlPanel ()
@@ -68,7 +68,7 @@ mindMapWidget = do
       -- getNodeForEvent ::
       --      AllEvents -- Filter this event
       --   -> Event t NodeID -- Get the current selected node
-      getNodeForEvent ev =
+      getNodeForEvent ev = fmap fst $
         tagPromptlyDyn selNodeDyn
         (fmapMaybe filterEv allEvents)
           where filterEv e = if e == ev then Just () else Nothing
@@ -90,7 +90,7 @@ mindMapWidget = do
          f (Left Data.Delete) = Just ()
          f (Left Data.Cut) = Just ()
          f (Left Data.Paste) = Just ()
-         f (Right _) = Just ()
+         --f (Right _) = Just ()
          f _ = Nothing
 
       
@@ -117,13 +117,15 @@ mainEventHandler getNewNode ev st =
       if (n == selNode)
         then return Nothing
         else return $
-          Just (st {selectedNode = n, nodeListDiff = Map.empty})
+          Just (st {selectedNode = (n, False)
+            , nodeListDiff = Map.empty})
 
     Left InsertChild -> do
       n <- getNewNode
              (NodeID 2) ("newNode")
 
-      return $ Just (st {selectedNode = (nodeID n)
+      return $ Just (st {
+                  selectedNode = (nodeID n, True)
                 , mindMap = (mindMap st) {
                     nodeList = nodeList (mindMap st) <>
                       (nodeID n =: n)}
@@ -131,7 +133,7 @@ mainEventHandler getNewNode ev st =
                       })
 
   where
-    selNode = selectedNode st
+    selNode = fst (selectedNode st)
     -- Diff the map when Add, delete, cut, paste event
     -- mapDiffEv :: Event t (Map NodeID (Maybe Node))
     mapDiffEv = undefined -- diffMapNoEq m1 m2
@@ -142,7 +144,7 @@ createNode :: (
            , MonadHold t m
            )
         => 
-     Dynamic t NodeID
+     Dynamic t (NodeID, Bool)
   -> Event t OpenToggleEv
   -> Event t NodeEditEv
   -> Dynamic t NodePos
@@ -152,7 +154,11 @@ createNode :: (
 
 createNode selNodeDyn openEv editEv nodePos i txt = do
   let
-    s = ffor selNodeDyn ((==) i)
+    s = ffor selNodeDyn
+          (\(n, e) -> 
+            if (n == i)
+              then if e then NodeEditing else NodeSelected
+              else NodeUnselected)
 
     f1 (OpenToggleEv n) b = if n == i then not b else b
 

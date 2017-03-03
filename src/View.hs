@@ -61,9 +61,10 @@ renderNode i n = do
   let 
       attr = (<>) <$> ((\c -> ("class" :: Text) =: c) <$> cl1 ) <*> p
               
-      cl1 = ffor (nodeSelected n)
+      cl1 = ffor (nodeState n)
             (\case
-              True -> "mindmap-node-selected" :: Text
+              NodeSelected -> "mindmap-node-selected" :: Text
+              NodeEditing -> "mindmap-node-editing"
               _ -> "mindmap-node-unselected")
 
       p = ffor (nodePosition n)
@@ -73,7 +74,6 @@ renderNode i n = do
                               "left" =: showT (fst pos) <>
                               "top" =: showT (snd pos)))
 
-      
   (t,_) <- elDynAttr' "li" attr $ do
         dynText $ nodeContent n
 
