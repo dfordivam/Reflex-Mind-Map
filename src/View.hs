@@ -80,7 +80,7 @@ renderNode i n = do
   let selectEvent = domEvent Click t
       --dblClick = domEvent Dblclick t
 
-      ev1 = fmap (const $ i) selectEvent
+      ev1 = fmap (const i) selectEvent
       --ev2 = fmap (const $ nodeId node) dblClick
 
       ev1' = traceEvent "NodeClick" $ fmap (\i -> SelectNodeEvent i) ev1
@@ -97,6 +97,14 @@ renderControlPanel :: ( DomBuilder t m
         => 
      ()
   -> m (Event t ControlPanelEvent)
-renderControlPanel _ = return never
+renderControlPanel _ = do
+  el "div" $ do
+    (insertButton,_) <- el' "span" $
+      text "Insert"
+
+    let insertEv = fmap (const Data.InsertChild) $ domEvent Click insertButton
+        
+    return insertEv
+
 showT :: (Show a) => a -> T.Text
 showT = T.pack.show

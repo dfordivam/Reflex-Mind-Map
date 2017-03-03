@@ -50,7 +50,10 @@ mindMapWidget = do
     -- Create the view
     nodeEvent <- renderMindMap origNodeList mapDiffEv
 
-    dynState1 <- foldDynMaybe mainEventHandler initState allEvents
+    dynState1 <- foldDynMaybeM
+      (mainEventHandler 
+      (createNode selNodeDyn openEv editEv nodePos))
+      initState allEvents
 
     let 
       allEvents = leftmost [Left <$> ctrlEv
@@ -90,6 +93,7 @@ mindMapWidget = do
          f (Right _) = Just ()
          f _ = Nothing
 
+      
     return ()
   return ()
 
@@ -102,15 +106,29 @@ getPos :: (Reflex t)
 getPos tree = constDyn Map.empty 
 
 mainEventHandler ::
-     AllEvents
+  (Monad m) =>
+     (NodeID -> Text -> m (Node t))
+  -> AllEvents
   -> AppState t
-  -> Maybe (AppState t)
-mainEventHandler ev st =
+  -> m (Maybe (AppState t))
+mainEventHandler getNewNode ev st =
   case ev of
     Right (SelectNodeEvent n) ->
       if (n == selNode)
-        then Nothing
-        else Just (st {selectedNode = n, nodeListDiff = Map.empty})
+        then return Nothing
+        else return $
+          Just (st {selectedNode = n, nodeListDiff = Map.empty})
+
+    Left InsertChild -> do
+      n <- getNewNode
+             (NodeID 2) ("newNode")
+
+      return $ Just (st {selectedNode = (nodeID n)
+                , mindMap = (mindMap st) {
+                    nodeList = nodeList (mindMap st) <>
+                      (nodeID n =: n)}
+                , nodeListDiff = (nodeID n =: Just n)
+                      })
 
   where
     selNode = selectedNode st
@@ -118,11 +136,10 @@ mainEventHandler ev st =
     -- mapDiffEv :: Event t (Map NodeID (Maybe Node))
     mapDiffEv = undefined -- diffMapNoEq m1 m2
 
-createNode :: ( DomBuilder t m
-           , DomBuilderSpace m ~ GhcjsDomSpace
+createNode :: (
+             Reflex t
            , MonadFix m
            , MonadHold t m
-           , PostBuild t m
            )
         => 
      Dynamic t NodeID
