@@ -2,6 +2,7 @@ module Data where
 
 import Data.Text (Text)
 import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Reflex.Dynamic
 
@@ -35,8 +36,13 @@ data AppState t = AppState {
     selectedNode  :: NodeID
   , nodePos       :: NodePos
   , mindMap       :: MindMap t
+  -- This diff will trigger rerendering
   , nodeListDiff  :: Map NodeID (Maybe (Node t))
 }
+
+instance Show (AppState t) where
+  show st = show (selectedNode st) ++ show (nodePos st)
+            ++ " DiffKeys: " ++ show (Map.keys $ nodeListDiff st)
 
 -- Events
 --

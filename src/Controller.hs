@@ -10,6 +10,7 @@ import Reflex.Dom
 
 import Control.Monad
 import Control.Monad.Fix
+import Data.Monoid
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
@@ -33,11 +34,15 @@ mindMapWidget = do
     n1 <- createNode selNodeDyn openEv editEv nodePos
             (NodeID 0) ("Root")
 
+    n2 <- createNode selNodeDyn openEv editEv nodePos
+            (NodeID 1) ("Leaf")
+
     let 
-      origNodeList = (nodeID n1 =: n1)
-      mindMapInit = MindMap (800,600) origNodeList (nodeID n1 =: [])
+      origNodeList = (nodeID n1 =: n1) <> (nodeID n2 =: n2)
+
+      mindMapInit = MindMap (800,600) origNodeList (nodeID n1 =: [nodeID n2])
       initState = AppState (nodeID n1) (Map.empty)
-                    mindMapInit (nodeID n1 =: Just n1)
+                    mindMapInit ((nodeID n1 =: Just n1) <> (nodeID n2 =: Just n2))
 
     ctrlEv <- renderControlPanel ()
 
@@ -45,7 +50,7 @@ mindMapWidget = do
     -- Create the view
     nodeEvent <- renderMindMap origNodeList mapDiffEv
 
-    dynState <- foldDynMaybe mainEventHandler initState allEvents
+    dynState1 <- foldDynMaybe mainEventHandler initState allEvents
 
     let 
       allEvents = leftmost [Left <$> ctrlEv
@@ -69,8 +74,10 @@ mindMapWidget = do
                   (uniqDyn (fmap (nodeTree.mindMap) dynState))
                   -- (uniqDyn (fmap nodeList.mindMap dynState))
                 
-      selNodeDyn = fmap selectedNode dynState
+      selNodeDyn = traceDyn "SelNode" (fmap selectedNode dynState)
       
+      dynState = traceDyn "State" dynState1
+
       mapDiffEv = tagPromptlyDyn 
         (fmap nodeListDiff dynState) reRenderEvent
 
@@ -80,6 +87,7 @@ mindMapWidget = do
          f (Left Data.Delete) = Just ()
          f (Left Data.Cut) = Just ()
          f (Left Data.Paste) = Just ()
+         f (Right _) = Just ()
          f _ = Nothing
 
     return ()
@@ -102,7 +110,7 @@ mainEventHandler ev st =
     Right (SelectNodeEvent n) ->
       if (n == selNode)
         then Nothing
-        else Just (st {selectedNode = n})
+        else Just (st {selectedNode = n, nodeListDiff = Map.empty})
 
   where
     selNode = selectedNode st

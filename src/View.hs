@@ -83,7 +83,7 @@ renderNode i n = do
       ev1 = fmap (const $ i) selectEvent
       --ev2 = fmap (const $ nodeId node) dblClick
 
-      ev1' = fmap (\i -> SelectNodeEvent i) ev1
+      ev1' = traceEvent "NodeClick" $ fmap (\i -> SelectNodeEvent i) ev1
       --ev2' = fmap (\i -> NodeDoubleClicked i) ev2
 
   return $ ev1' -- leftmost [ev2', ev1']
