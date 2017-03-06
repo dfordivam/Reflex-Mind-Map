@@ -60,7 +60,8 @@ renderNode :: ( DomBuilder t m
 -----------------------------------------------------------------
 renderNode i n = do
   let
-      attr = (<>) <$> ((\c -> ("class" :: Text) =: c) <$> cl1 ) <*> p
+      attr = (<>) <$> ((\c -> ("class" :: Text) =: c) <$> cl1 ) <*>
+                  ((\x -> ("style" =: x)) <$> style)
 
       cl1 = ffor (nodeState n)
             (\case
@@ -68,14 +69,15 @@ renderNode i n = do
               NodeEditing -> "mindmap-node-editing"
               _ -> "mindmap-node-unselected")
 
-      p = ffor (nodePosition n)
-            (\case
-              Nothing -> (("display" :: Text) =: "none")
-              (Just pos) -> ("position" =: "absolute" <>
-                              "left" =: showT (fst pos) <>
-                              "top" =: showT (snd pos)))
 
-  elDynAttr "div" p $ do
+      style = ffor (nodePosition n)
+            (\case
+              Nothing -> ("display: none;" :: Text)
+              (Just pos) -> ("position: absolute;" <>
+                              "left: " <> showT (fst pos) <>
+                              "px; top: " <> showT (snd pos) <> "px;"))
+
+  elDynAttr "div" attr $ do
     ev1 <- renderNodeText i n
     ev2 <- renderNodeEditWidget i n
     --let ev2 = never
@@ -83,14 +85,13 @@ renderNode i n = do
 
 renderNodeText i n = do
   let
-      attr = constDyn Map.empty
-        --(<>) <$> ((\c -> ("class" :: Text) =: c) <$> cl1 ) <*> p
+      attr = ((\x -> ("style" =: x)) <$> style)
 
-      cl1 = ffor (nodeState n)
+      style = ffor (nodeState n)
             (\case
-              NodeSelected -> "mindmap-node-selected" :: Text
-              NodeEditing -> "mindmap-node-editing"
-              _ -> "mindmap-node-unselected")
+              NodeSelected -> "" :: Text
+              NodeEditing -> "display: none;"
+              _ -> "")
 
     -- Node Text and click event
   (te,_) <- elDynAttr' "span" attr $ do
@@ -108,6 +109,14 @@ renderNodeText i n = do
   return ev1'
 
 renderNodeEditWidget i n = do
+  let
+      attr = ((\x -> ("style"  =: x)) <$> style)
+
+      style = ffor (nodeState n)
+            (\case
+              NodeEditing -> ""
+              _ -> "display: none;")
+
   -- Create the textbox; it will be cleared whenever the user presses enter
   rec let newValueEntered = ffilter (keyCodeIs Enter)
             (_textInput_keypress descriptionBox)
@@ -118,10 +127,11 @@ renderNodeEditWidget i n = do
         & textInputConfig_initialValue .~ nodeText
         -- & textInputConfig_setValue .~ newValue
         & textInputConfig_attributes .~
+          (attr <>
         constDyn (mconcat [ "class" =: "edit-node"
             , "placeholder" =: "Node"
             , "autofocus" =: ""
-        ])
+        ]))
 
 
   -- Request focus on this element when the widget is done being built
