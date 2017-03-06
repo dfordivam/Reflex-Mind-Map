@@ -18,6 +18,7 @@ import qualified Data.Text as T
 
 import Data
 import View
+import Algo
 
 mindMapWidget :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
@@ -40,8 +41,10 @@ mindMapWidget = do
     let
       origNodeList = (nodeID n1 =: n1) <> (nodeID n2 =: n2)
 
-      mindMapInit = MindMap (800,600) origNodeList (nodeID n1 =: [nodeID n2])
-      initState = AppState (nodeID n1, False) (Map.empty)
+      mindMapInit = MindMap (800,600) origNodeList 
+        ((nodeID n1 =: [nodeID n2]) <> (nodeID n2 =: []))
+
+      initState = AppState (nodeID n1, False)
                     mindMapInit ((nodeID n1 =: Just n1) <> (nodeID n2 =: Just n2))
 
     ctrlEv <- renderControlPanel ()
@@ -76,9 +79,7 @@ mindMapWidget = do
         (fmapMaybe filterEv allEvents)
           where filterEv e = if e == ev then Just () else Nothing
 
-      nodePos = getPos
-                  (uniqDyn (fmap (nodeTree.mindMap) dynState))
-                  -- (uniqDyn (fmap nodeList.mindMap dynState))
+      nodePos = getPos (fmap mindMap dynState)
 
       selNodeDyn = traceDyn "SelNode" (fmap selectedNode dynState)
 
@@ -105,10 +106,9 @@ mindMapWidget = do
 -- Try not to change Pos with selection events
 getPos :: (Reflex t)
   =>
-     Dynamic t NodeTree
-  -- -> Dynamic t NodeList
+     Dynamic t (MindMap t)
   -> Dynamic t NodePos
-getPos tree = constDyn Map.empty
+getPos mm = traceDyn "Pos" $ joinDynThroughMap $ fmap getNodePos mm
 
 mainEventHandler ::
   (Monad m) =>
@@ -190,7 +190,7 @@ createNode selNodeDyn openEv editEv nodePos i p txt = do
     f2 (NodeEditEv newText n) oldText =
       if n == i then newText else oldText
 
-    pos = ffor nodePos (\m ->  Map.lookup i m)
+    pos = ffor nodePos (\m ->  join $ Map.lookup i m)
 
   o <- foldDyn f1 True openEv
   txt' <- foldDyn f2 txt editEv

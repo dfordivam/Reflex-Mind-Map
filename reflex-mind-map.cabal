@@ -23,6 +23,7 @@ library
       Lib
 
   other-modules:
+      Algo
       Data
       View
       Controller

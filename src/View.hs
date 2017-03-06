@@ -34,10 +34,9 @@ renderMindMap nl mapDiffEv = do
   -- update it with the given event. Nothing entries will delete the
   -- corresponding children, and Just entries will create or replace them.
   -- Since child events do not take any signal arguments,
-  -- they are always rebuilt. To
-  -- update a child without rebuilding, either embed signals in the map's
+  -- they are always rebuilt.
+  -- To update a child without rebuilding, either embed signals in the map's
   -- values, or refer to them directly in the builder function.
-  --
   -- Therefore always use diffMapNoEq and put Dynamic in values
   evMapDyn <- listHoldWithKey nl mapDiffEv renderNode
 
@@ -76,7 +75,7 @@ renderNode i n = do
                               "left" =: showT (fst pos) <>
                               "top" =: showT (snd pos)))
 
-  el "li" $ do
+  elDynAttr "div" p $ do
     ev1 <- renderNodeText i n
     ev2 <- renderNodeEditWidget i n
     --let ev2 = never

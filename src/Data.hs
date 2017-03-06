@@ -9,7 +9,7 @@ import Reflex.Dynamic
 -- Model Data
 --
 type Position = (Int, Int)
-type NodePos = Map NodeID Position
+type NodePos = Map NodeID (Maybe Position)
 
 newtype NodeID = NodeID { unNodeID :: Int }
   deriving (Show, Ord, Eq)
@@ -40,21 +40,20 @@ data MindMap t = MindMap {
 -- Control Data
 data AppState t = AppState {
     selectedNode  :: (NodeID, Bool) -- (Editing?)
-  , nodePos       :: NodePos
   , mindMap       :: MindMap t
   -- This diff will trigger rerendering
   , nodeListDiff  :: Map NodeID (Maybe (Node t))
 }
 
 instance Show (AppState t) where
-  show st = show (selectedNode st) ++ " " ++ show (nodePos st)
+  show st = show (selectedNode st) ++ " "
             ++ " DiffKeysNew: " ++ show (Map.keys $ nodeListDiff st)
 
 -- Events
 --
 -- The source of these events can be Control Panel or rendered Mind Map itself
 
-type AllEvents = 
+type AllEvents =
   Either ControlPanelEvent NodeEvent
 
 data ControlPanelEvent =
