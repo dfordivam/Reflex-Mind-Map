@@ -59,11 +59,14 @@ mindMapWidget = do
       allEvents = leftmost [Left <$> ctrlEv
                     , Right <$> nodeEvent]
 
-      openEv = fmap OpenToggleEv $
+      openEv = OpenToggleEv <$>
         getNodeForEvent (Left OpenToggle)
 
-      editEv = fmap (NodeEditEv "")
-        (getNodeForEvent (Left Edit))
+      editEv = (uncurry NodeEditEv) <$>
+        (fmapMaybe f allEvents)
+          where
+            f (Right (EditFinishNodeEvent n txt)) = Just (txt,n)
+            f _ = Nothing
 
       -- getNodeForEvent ::
       --      AllEvents -- Filter this event
@@ -120,6 +123,9 @@ mainEventHandler getNewNode ev st =
           Just (st {selectedNode = (n, False)
             , nodeListDiff = Map.empty})
 
+    Right (EditFinishNodeEvent n txt) -> return $
+      Just $ st { selectedNode = (n, False)
+        , nodeListDiff = Map.empty}
     Left InsertChild -> do
       n <- getNewNode
              (NodeID 2) ("newNode")
