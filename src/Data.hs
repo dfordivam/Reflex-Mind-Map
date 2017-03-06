@@ -76,5 +76,6 @@ data NodeEditEv = NodeEditEv Text NodeID
 
 data NodeEvent =
     SelectNodeEvent NodeID
+  | EditFinishNodeEvent NodeID Text
   deriving (Show, Ord, Eq)
 

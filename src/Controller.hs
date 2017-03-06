@@ -18,14 +18,14 @@ import qualified Data.Text as T
 
 import Data
 import View
-  
+
 mindMapWidget :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
            , MonadFix m
            , MonadHold t m
            , PostBuild t m
            )
-        => 
+        =>
   m ()
 mindMapWidget = do
 
@@ -37,7 +37,7 @@ mindMapWidget = do
     n2 <- createNode selNodeDyn openEv editEv nodePos
             (NodeID 1) ("Leaf")
 
-    let 
+    let
       origNodeList = (nodeID n1 =: n1) <> (nodeID n2 =: n2)
 
       mindMapInit = MindMap (800,600) origNodeList (nodeID n1 =: [nodeID n2])
@@ -51,11 +51,11 @@ mindMapWidget = do
     nodeEvent <- renderMindMap origNodeList mapDiffEv
 
     dynState1 <- foldDynMaybeM
-      (mainEventHandler 
+      (mainEventHandler
       (createNode selNodeDyn openEv editEv nodePos))
       initState allEvents
 
-    let 
+    let
       allEvents = leftmost [Left <$> ctrlEv
                     , Right <$> nodeEvent]
 
@@ -76,12 +76,12 @@ mindMapWidget = do
       nodePos = getPos
                   (uniqDyn (fmap (nodeTree.mindMap) dynState))
                   -- (uniqDyn (fmap nodeList.mindMap dynState))
-                
+
       selNodeDyn = traceDyn "SelNode" (fmap selectedNode dynState)
-      
+
       dynState = traceDyn "State" dynState1
 
-      mapDiffEv = tagPromptlyDyn 
+      mapDiffEv = tagPromptlyDyn
         (fmap nodeListDiff dynState) reRenderEvent
 
       reRenderEvent = fmapMaybe f allEvents
@@ -93,7 +93,7 @@ mindMapWidget = do
          --f (Right _) = Just ()
          f _ = Nothing
 
-      
+
     return ()
   return ()
 
@@ -103,7 +103,7 @@ getPos :: (Reflex t)
      Dynamic t NodeTree
   -- -> Dynamic t NodeList
   -> Dynamic t NodePos
-getPos tree = constDyn Map.empty 
+getPos tree = constDyn Map.empty
 
 mainEventHandler ::
   (Monad m) =>
@@ -143,7 +143,7 @@ createNode :: (
            , MonadFix m
            , MonadHold t m
            )
-        => 
+        =>
      Dynamic t (NodeID, Bool)
   -> Event t OpenToggleEv
   -> Event t NodeEditEv
@@ -155,7 +155,7 @@ createNode :: (
 createNode selNodeDyn openEv editEv nodePos i txt = do
   let
     s = ffor selNodeDyn
-          (\(n, e) -> 
+          (\(n, e) ->
             if (n == i)
               then if e then NodeEditing else NodeSelected
               else NodeUnselected)
@@ -164,10 +164,10 @@ createNode selNodeDyn openEv editEv nodePos i txt = do
 
     f2 (NodeEditEv newText n) oldText =
       if n == i then newText else oldText
-    
+
     p = ffor nodePos (\m ->  Map.lookup i m)
 
   o <- foldDyn f1 True openEv
   txt' <- foldDyn f2 txt editEv
-  
+
   return $ Node i txt' s o p
