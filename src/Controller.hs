@@ -84,17 +84,19 @@ mindMapWidget = do
 
       dynState = traceDyn "State" dynState1
 
+      -- Restrict the rerendering to these events
+      -- May be this is not required if we have an empty nodeListDiff
       mapDiffEv = tagPromptlyDyn
         (fmap nodeListDiff dynState) reRenderEvent
-
-      reRenderEvent = fmapMaybe f allEvents
         where
-         f (Left Data.InsertChild) = Just ()
-         f (Left Data.Delete) = Just ()
-         f (Left Data.Cut) = Just ()
-         f (Left Data.Paste) = Just ()
-         --f (Right _) = Just ()
-         f _ = Nothing
+          reRenderEvent = fmapMaybe f allEvents
+            where
+             f (Left Data.InsertChild) = Just ()
+             f (Left Data.Delete) = Just ()
+             f (Left Data.Cut) = Just ()
+             f (Left Data.Paste) = Just ()
+             --f (Right _) = Just ()
+             f _ = Nothing
 
 
     return ()
@@ -126,6 +128,7 @@ mainEventHandler getNewNode ev st =
     Right (EditFinishNodeEvent n txt) -> return $
       Just $ st { selectedNode = (n, False)
         , nodeListDiff = Map.empty}
+
     Left InsertChild -> do
       n <- getNewNode
              (NodeID 2) ("newNode")
