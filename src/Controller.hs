@@ -32,10 +32,10 @@ mindMapWidget = do
   rec
 
     n1 <- createNode selNodeDyn openEv editEv nodePos
-            (NodeID 0) ("Root")
+            (NodeID 0) (NodeID 0) ("Root")
 
     n2 <- createNode selNodeDyn openEv editEv nodePos
-            (NodeID 1) ("Leaf")
+            (NodeID 1) (NodeID 0) ("Child")
 
     let
       origNodeList = (nodeID n1 =: n1) <> (nodeID n2 =: n2)
@@ -112,7 +112,7 @@ getPos tree = constDyn Map.empty
 
 mainEventHandler ::
   (Monad m) =>
-     (NodeID -> Text -> m (Node t))
+     (NodeID -> NodeID -> Text -> m (Node t))
   -> AllEvents
   -> AppState t
   -> m (Maybe (AppState t))
@@ -129,23 +129,38 @@ mainEventHandler getNewNode ev st =
       Just $ st { selectedNode = (n, False)
         , nodeListDiff = Map.empty}
 
-    Left InsertChild -> do
-      n <- getNewNode
-             (NodeID 2) ("newNode")
+    Left Edit -> return $
+      Just $ st { selectedNode = (selNode, True)
+        , nodeListDiff = Map.empty}
 
-      return $ Just (st {
-                  selectedNode = (nodeID n, True)
-                , mindMap = (mindMap st) {
-                    nodeList = nodeList (mindMap st) <>
-                      (nodeID n =: n)}
-                , nodeListDiff = (nodeID n =: Just n)
-                      })
+    -- This will recompute the positions
+    Left OpenToggle -> return Nothing
+
+
+    Left InsertChild -> do
+      let mm = mindMap st
+          newID = NodeID $ 1 +
+            (unNodeID $ fst $ head $ Map.toDescList (nodeList mm))
+
+      n <- getNewNode
+             newID selNode ("")
+
+      let newList = nodeList mm <>
+                      (nodeID n =: n)
+          t1 = Map.update (\l -> Just (newID:l)) selNode (nodeTree mm)
+          newTree = Map.insert newID [] t1
+
+      return $
+        Just $ st {
+            selectedNode = (newID, True)
+          , mindMap = mm { nodeList = newList,
+              nodeTree = newTree}
+          , nodeListDiff = (nodeID n =: Just n) <>
+                (selNode =: Map.lookup selNode newList)
+          }
 
   where
     selNode = fst (selectedNode st)
-    -- Diff the map when Add, delete, cut, paste event
-    -- mapDiffEv :: Event t (Map NodeID (Maybe Node))
-    mapDiffEv = undefined -- diffMapNoEq m1 m2
 
 createNode :: (
              Reflex t
@@ -158,10 +173,11 @@ createNode :: (
   -> Event t NodeEditEv
   -> Dynamic t NodePos
   -> NodeID
+  -> NodeID
   -> Text
   -> m (Node t)
 
-createNode selNodeDyn openEv editEv nodePos i txt = do
+createNode selNodeDyn openEv editEv nodePos i p txt = do
   let
     s = ffor selNodeDyn
           (\(n, e) ->
@@ -174,9 +190,9 @@ createNode selNodeDyn openEv editEv nodePos i txt = do
     f2 (NodeEditEv newText n) oldText =
       if n == i then newText else oldText
 
-    p = ffor nodePos (\m ->  Map.lookup i m)
+    pos = ffor nodePos (\m ->  Map.lookup i m)
 
   o <- foldDyn f1 True openEv
   txt' <- foldDyn f2 txt editEv
 
-  return $ Node i txt' s o p
+  return $ Node i p txt' s o pos

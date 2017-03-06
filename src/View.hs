@@ -147,6 +147,9 @@ renderControlPanel _ = do
     (editButton,_) <- el' "span" $
       text "Edit"
 
+    (openButton,_) <- el' "span" $
+      text "Open"
+
     let
       editEv = fmap (const Data.Edit) $
                   domEvent Click editButton
@@ -154,7 +157,10 @@ renderControlPanel _ = do
       insertEv = fmap (const Data.InsertChild) $
                   domEvent Click insertButton
 
-    return $ leftmost [insertEv, editEv]
+      openEv = fmap (const Data.OpenToggle) $
+                  domEvent Click openButton
+
+    return $ leftmost [insertEv, editEv, openEv]
 
 showT :: (Show a) => a -> T.Text
 showT = T.pack.show

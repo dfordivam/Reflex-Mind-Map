@@ -16,6 +16,7 @@ newtype NodeID = NodeID { unNodeID :: Int }
 
 data Node t = Node {
     nodeID        :: NodeID
+  , nodeParent    :: NodeID
   , nodeContent   :: Dynamic t Text
   , nodeState     :: Dynamic t NodeState
   , nodeOpen      :: Dynamic t Bool
