@@ -1,8 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
 -- Pure algo stuff
--- No Dom related things here
+-- No Dom related monadic things here
 
-module Algo where
+module Algo
+  (getPos)
+  where
 
 import Reflex
 
@@ -33,6 +35,12 @@ data Direction = LeftD | RightD
 -- In this way vertical position of each node can be determined
 --
 
+getPos :: (Reflex t)
+  =>
+     Dynamic t (MindMap t)
+  -> Dynamic t NodePos
+getPos mm = traceDyn "Pos" $ joinDynThroughMap $ fmap getNodePos mm
+
 getNodePos :: (Reflex t) => MindMap t -> Map NodeID (Dynamic t (Maybe Position))
 getNodePos (MindMap csize nm nt) = coords
   where
@@ -49,7 +57,7 @@ getNodePos (MindMap csize nm nt) = coords
 
     -- Output Stuff
     coords = Map.mapWithKey absPos nm
- 
+
     -- Absolute position is dynamic based on
     -- all of these dynamic conditions
     -- 1. Whether parent node is open/collapsed
@@ -58,7 +66,7 @@ getNodePos (MindMap csize nm nt) = coords
     -- absPos :: (Reflex t) => NodeID -> (Node t) -> Dynamic t (Maybe Position)
     absPos (NodeID 0) _  = constDyn (Just rootCoord)
     absPos nId n = pPos +++ pos nId
-      where 
+      where
         p = nodeParent n
         pNode = node p
         pPos = join $ ffor (nodeOpen pNode)
@@ -74,8 +82,8 @@ getNodePos (MindMap csize nm nt) = coords
       where
         f (Just (a,b)) (Just (c,d)) = Just (a+c, b+d)
         f _ _ = Nothing
-   
-    
+
+
     parent :: NodeID -> NodeID
     parent (NodeID 0) = error "parent"
     parent n = nodeParent (node n)
@@ -96,14 +104,14 @@ getNodePos (MindMap csize nm nt) = coords
 
     -- Relative to parent pos
     -- h/2 + o - p/2
-    vPos n = (+) <$> 
+    vPos n = (+) <$>
                 (half h) <*>
                 ((-) <$> o <*> (half p))
       where p = height (parent n)
             h = height n
             o = foldAdd (map height $ beforeSiblings n)
             half = fmap (\v -> ceiling ((fromIntegral v)/2))
-    
+
     foldAdd = foldl (\a b -> (+) <$> a <*> b) (constDyn 0)
     nodeDefaultHeight = 40
 
@@ -112,21 +120,21 @@ getNodePos (MindMap csize nm nt) = coords
     height n = if null (children n)
                  then constDyn nodeDefaultHeight
                  else h
-      where 
+      where
         h = join $ ffor (nodeOpen (node n))
           (\case
             True -> foldAdd (map height $ children n)
             False -> constDyn nodeDefaultHeight)
-    
+
     children :: NodeID -> [NodeID]
-    children n = 
+    children n =
       let (Just ls) = Map.lookup n nt
       in ls
-    
+
     beforeSiblings :: NodeID -> [NodeID]
     beforeSiblings n = takeWhile (/= n) c
       where c = children $ parent n
-           
+
 
 
 constructDirMap :: NodeTree -> Map NodeID Direction

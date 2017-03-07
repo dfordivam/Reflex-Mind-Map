@@ -31,13 +31,13 @@ renderMindMap nl mapDiffEv = do
 
   -- evMapDyn :: Dynamic t (Map NodeID (Event t NodeEvent))
   -- Display the given map of items using the builder function provided, and
-  -- update it with the given event. Nothing entries will delete the
-  -- corresponding children, and Just entries will create or replace them.
+  -- update it with the given event. 'Nothing' entries will delete the
+  -- corresponding children, and 'Just' entries will create or replace them.
   -- Since child events do not take any signal arguments,
   -- they are always rebuilt.
   -- To update a child without rebuilding, either embed signals in the map's
   -- values, or refer to them directly in the builder function.
-  -- Therefore always use diffMapNoEq and put Dynamic in values
+  -- Therefore put Dynamic inside values
   evMapDyn <- listHoldWithKey nl mapDiffEv renderNode
 
   let
@@ -45,6 +45,9 @@ renderMindMap nl mapDiffEv = do
         ffor evMapDyn (\m -> leftmost (map snd $ Map.toList m))
   return ev
 
+
+-----------------------------------------------------------------
+-----------------------------------------------------------------
 renderNode :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
            , MonadFix m
@@ -55,10 +58,8 @@ renderNode :: ( DomBuilder t m
      NodeID
   -> Node t
   -> m (Event t NodeEvent)
-
------------------------------------------------------------------
------------------------------------------------------------------
 renderNode i n = do
+  -- A better way to manage style/properties?
   let
       attr = (<>) <$> ((\c -> ("class" :: Text) =: c) <$> cl1 ) <*>
                   ((\x -> ("style" =: x)) <$> style)
@@ -80,7 +81,6 @@ renderNode i n = do
   elDynAttr "div" attr $ do
     ev1 <- renderNodeText i n
     ev2 <- renderNodeEditWidget i n
-    --let ev2 = never
     return $ leftmost [ev1, ev2]
 
 renderNodeText i n = do
@@ -89,8 +89,7 @@ renderNodeText i n = do
 
       style = ffor (nodeState n)
             (\case
-              NodeSelected -> "" :: Text
-              NodeEditing -> "display: none;"
+              NodeEditing -> "display: none;" :: Text
               _ -> "")
 
     -- Node Text and click event
@@ -139,6 +138,7 @@ renderNodeEditWidget i n = do
   return $ fmap (\d -> EditFinishNodeEvent i d) newValue
 -----------------------------------------------------------------
 -----------------------------------------------------------------
+
 renderControlPanel :: ( DomBuilder t m
            , DomBuilderSpace m ~ GhcjsDomSpace
            , MonadFix m
@@ -149,14 +149,14 @@ renderControlPanel :: ( DomBuilder t m
      ()
   -> m (Event t ControlPanelEvent)
 renderControlPanel _ = do
-  el "div" $ do
-    (insertButton,_) <- el' "span" $
+  el "div" $ el "table" $ el "tr" $ do
+    (insertButton,_) <- el' "th" $
       text "Insert"
 
-    (editButton,_) <- el' "span" $
+    (editButton,_) <- el' "th" $
       text "Edit"
 
-    (openButton,_) <- el' "span" $
+    (openButton,_) <- el' "th" $
       text "Open"
 
     let
