@@ -1,24 +1,25 @@
 code size summary per package:
 
-base:                    338472
+base:                    395279
+bytestring-0.10.8.1-5wktHSR60zC2wTr02OpyVU:1141
 containers-0.5.7.1-9AY76Rzb1QLJmP8p4wSZRz:233067
 deepseq-1.4.2.0-47yvsc92PQF1rYmebWoAXZ:884
 dependent-map-0.2.4.0-JQogJkCWcm51zbhFvdN4TV:126142
 dependent-sum-0.3.2.2-7nS29TvovqDNS76jfcaer:12371
-ghc-prim:                19842
+ghc-prim:                20794
 ghcjs-base-0.2.0.0-D8NHjFR0nuJEBIdpJ8312j:19332
-ghcjs-dom-0.2.3.1-L0IRwwiUDix9xezZ47SisT:138081
+ghcjs-dom-0.2.3.1-L0IRwwiUDix9xezZ47SisT:139018
 ghcjs-prim-0.1.0.0-IFhsWclGfLr1HfhUvIVylA:10708
-integer-gmp:             14239
+integer-gmp:             37083
 keycode-0.2.2-Dkt3wjIxPPK9Nn1dpIPfc:10484
-main:                    554
+main:                    621
 prim-uniq-0.1.0.1-Lbg7Imujn019qkjLCx908j:2786
 primitive-0.6.1.0-PBvNfnj6B81wEvI5CBk0H:809
 ref-tf-0.4.0.1-3hM7hnw7bOB1FwMAOCGwpN:609
 reflex-0.5.0-AvoxeUts7Jf2q0UxCMqPFj:1006221
-reflex-dom-0.4-LrG6o2CPykBJyj87a21yza:550832
-reflex-mind-map-0.0.0-PcaqVopscd6JnZhBRByVu:200862
-text-1.2.2.1-6Pphv4bz3hHEAngNHxPNZe:1731
+reflex-dom-0.4-LrG6o2CPykBJyj87a21yza:554691
+reflex-mind-map-0.0.0-G9eeXbVhrrH8uNudMbR3IH:198554
+text-1.2.2.1-6Pphv4bz3hHEAngNHxPNZe:12960
 these-0.7.1-Jw1YCr04InZ1c0BLK9t9qc:2986
 transformers-0.5.2.0-Lvs3wlJMkpyLRFNHJ8pmeB:11531
 
@@ -52,9 +53,9 @@ base
     Foreign.Storable:                   9380
     GHC.Base:                           8649
     GHC.Conc.Sync:                      8239
-    GHC.Enum:                           3090
+    GHC.Enum:                           18786
     GHC.Err:                            546
-    GHC.Exception:                      12448
+    GHC.Exception:                      16620
     GHC.Fingerprint:                    1459
     GHC.Fingerprint.Type:               724
     GHC.Foreign:                        12172
@@ -78,20 +79,24 @@ base
     GHC.Int:                            755
     GHC.List:                           6806
     GHC.MVar:                           174
-    GHC.Num:                            1224
+    GHC.Num:                            2802
     GHC.Ptr:                            610
-    GHC.Real:                           2275
+    GHC.Real:                           12805
     GHC.STRef:                          361
-    GHC.Show:                           15695
+    GHC.Show:                           18894
     GHC.Stack.CCS:                      3971
     GHC.Stack.Types:                    1491
     GHC.Storable:                       1070
     GHC.TopHandler:                     12934
     GHC.Weak:                           174
-    GHC.Word:                           923
+    GHC.Word:                           17457
+    Numeric:                            5098
     System.IO:                          622
     System.Posix.Internals:             15344
     Unsafe.Coerce:                      97
+
+bytestring-0.10.8.1-5wktHSR60zC2wTr02OpyVU
+    Data.ByteString.Internal:           1141
 
 containers-0.5.7.1-9AY76Rzb1QLJmP8p4wSZRz
     Data.IntMap.Base:                   39061
@@ -114,9 +119,9 @@ dependent-sum-0.3.2.2-7nS29TvovqDNS76jfcaer
 
 ghc-prim
     GHC.CString:                        4494
-    GHC.Classes:                        9500
+    GHC.Classes:                        10471
     GHC.IntWord64:                      298
-    GHC.Tuple:                          3282
+    GHC.Tuple:                          3263
     GHC.Types:                          2268
 
 ghcjs-base-0.2.0.0-D8NHjFR0nuJEBIdpJ8312j
@@ -130,7 +135,7 @@ ghcjs-base-0.2.0.0-D8NHjFR0nuJEBIdpJ8312j
 ghcjs-dom-0.2.3.1-L0IRwwiUDix9xezZ47SisT
     GHCJS.DOM:                          7654
     GHCJS.DOM.EventM:                   2291
-    GHCJS.DOM.JSFFI.Generated.Document: 3505
+    GHCJS.DOM.JSFFI.Generated.Document: 4322
     GHCJS.DOM.JSFFI.Generated.Element:  30982
     GHCJS.DOM.JSFFI.Generated.Event:    818
     GHCJS.DOM.JSFFI.Generated.FileList: 881
@@ -139,20 +144,20 @@ ghcjs-dom-0.2.3.1-L0IRwwiUDix9xezZ47SisT
     GHCJS.DOM.JSFFI.Generated.HTMLTextAreaElement:968
     GHCJS.DOM.JSFFI.Generated.Node:     5530
     GHCJS.DOM.JSFFI.Generated.Window:   1388
-    GHCJS.DOM.Types:                    81436
+    GHCJS.DOM.Types:                    81556
 
 ghcjs-prim-0.1.0.0-IFhsWclGfLr1HfhUvIVylA
     GHCJS.Prim:                         6385
     GHCJS.Prim.Internal:                4323
 
 integer-gmp
-    GHC.Integer.Type:                   14239
+    GHC.Integer.Type:                   37083
 
 keycode-0.2.2-Dkt3wjIxPPK9Nn1dpIPfc
     Web.KeyCode:                        10484
 
 main
-    Main:                               554
+    Main:                               621
 
 prim-uniq-0.1.0.1-Lbg7Imujn019qkjLCx908j
     Unsafe.Unique.Prim:                 1053
@@ -186,19 +191,22 @@ reflex-dom-0.4-LrG6o2CPykBJyj87a21yza
     Foreign.JavaScript.TH:              3718
     Reflex.Dom.Builder.Class:           22458
     Reflex.Dom.Builder.Class.Events:    140096
-    Reflex.Dom.Builder.Immediate:       319936
-    Reflex.Dom.Internal:                24033
+    Reflex.Dom.Builder.Immediate:       320558
+    Reflex.Dom.Internal:                27270
     Reflex.Dom.Widget.Basic:            27166
     Reflex.Dom.Widget.Input:            13425
 
-reflex-mind-map-0.0.0-PcaqVopscd6JnZhBRByVu
-    Algo:                               19292
-    Controller:                         63088
-    Data:                               16162
-    Lib:                                34064
-    View:                               68256
+reflex-mind-map-0.0.0-G9eeXbVhrrH8uNudMbR3IH
+    Algo:                               27166
+    Controller:                         51814
+    Data:                               14851
+    Lib:                                35318
+    View:                               69405
 
 text-1.2.2.1-6Pphv4bz3hHEAngNHxPNZe
+    Data.Text.Array:                    437
+    Data.Text.Encoding:                 3775
+    Data.Text.Encoding.Error:           7017
     Data.Text.Internal:                 1731
 
 these-0.7.1-Jw1YCr04InZ1c0BLK9t9qc
@@ -211,5 +219,5 @@ transformers-0.5.2.0-Lvs3wlJMkpyLRFNHJ8pmeB
 
 
 
-packed metadata: 586653
+packed metadata: 613176
 
