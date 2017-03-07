@@ -1,0 +1,17 @@
+
+.mindmap-node-selected {
+  color: black;
+  font-weight: bold;
+  text-align: center;
+  outline-color: orange;
+  border: 1px solid black;
+  outline-style: solid:
+}
+
+.mindmap-node-unselected {
+  color: black;
+  text-align: center;
+  outline-color: gray;
+  border: 1px solid black;
+  outline-style: solid:
+}

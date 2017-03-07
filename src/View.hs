@@ -149,14 +149,14 @@ renderControlPanel :: ( DomBuilder t m
      ()
   -> m (Event t ControlPanelEvent)
 renderControlPanel _ = do
-  el "div" $ do
-    (insertButton,_) <- el' "span" $
+  el "div" $ el "table" $ el "tr" $ do
+    (insertButton,_) <- el' "th" $
       text "Insert"
 
-    (editButton,_) <- el' "span" $
+    (editButton,_) <- el' "th" $
       text "Edit"
 
-    (openButton,_) <- el' "span" $
+    (openButton,_) <- el' "th" $
       text "Open"
 
     let
