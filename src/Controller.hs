@@ -32,6 +32,7 @@ mindMapWidget = do
 
   rec
 
+    -- Initialization of Mind Map
     n1 <- createNode selNodeDyn openEv editEv nodePos
             (NodeID 0) (NodeID 0) ("Root")
 
@@ -47,43 +48,40 @@ mindMapWidget = do
       initState = AppState (nodeID n1, False)
                     mindMapInit ((nodeID n1 =: Just n1) <> (nodeID n2 =: Just n2))
 
-    ctrlEv <- renderControlPanel ()
-
-
     -- Create the view
+    ctrlEv <- renderControlPanel ()
     nodeEvent <- renderMindMap origNodeList mapDiffEv
 
+    -- Main state machine
     dynState1 <- foldDynMaybeM
       (mainEventHandler
       (createNode selNodeDyn openEv editEv nodePos))
       initState allEvents
 
     let
+      -- Gather all events
       allEvents = leftmost [Left <$> ctrlEv
                     , Right <$> nodeEvent]
 
+      -- These events are computed from allEvents
+      -- They don't hold any state
       openEv = OpenToggleEv <$>
         getNodeForEvent (Left OpenToggle)
+        where
+          -- getNodeForEvent ::
+          --      AllEvents -- Filter this event
+          --   -> Event t NodeID -- Get the current selected node
+          getNodeForEvent ev = fmap fst $
+            tagPromptlyDyn selNodeDyn
+            (fmapMaybe filterEv allEvents)
+              where filterEv e = if e == ev then Just () else Nothing
+
 
       editEv = (uncurry NodeEditEv) <$>
         (fmapMaybe f allEvents)
           where
             f (Right (EditFinishNodeEvent n txt)) = Just (txt,n)
             f _ = Nothing
-
-      -- getNodeForEvent ::
-      --      AllEvents -- Filter this event
-      --   -> Event t NodeID -- Get the current selected node
-      getNodeForEvent ev = fmap fst $
-        tagPromptlyDyn selNodeDyn
-        (fmapMaybe filterEv allEvents)
-          where filterEv e = if e == ev then Just () else Nothing
-
-      nodePos = getPos (fmap mindMap dynState)
-
-      selNodeDyn = traceDyn "SelNode" (fmap selectedNode dynState)
-
-      dynState = traceDyn "State" dynState1
 
       -- Restrict the rerendering to these events
       -- May be this is not required if we have an empty nodeListDiff
@@ -100,15 +98,16 @@ mindMapWidget = do
              f _ = Nothing
 
 
+      -- Some derived dynamic values
+      nodePos = getPos (fmap mindMap dynState)
+
+      selNodeDyn = traceDyn "SelNode" (fmap selectedNode dynState)
+
+      -- Debugging
+      dynState = traceDyn "State" dynState1
+
     return ()
   return ()
-
--- Try not to change Pos with selection events
-getPos :: (Reflex t)
-  =>
-     Dynamic t (MindMap t)
-  -> Dynamic t NodePos
-getPos mm = traceDyn "Pos" $ joinDynThroughMap $ fmap getNodePos mm
 
 mainEventHandler ::
   (Monad m) =>

@@ -1,8 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
 -- Pure algo stuff
--- No Dom related things here
+-- No Dom related monadic things here
 
-module Algo where
+module Algo
+  (getPos)
+  where
 
 import Reflex
 
@@ -32,6 +34,12 @@ data Direction = LeftD | RightD
 -- set of leaf nodes wrt to its own parent.
 -- In this way vertical position of each node can be determined
 --
+
+getPos :: (Reflex t)
+  =>
+     Dynamic t (MindMap t)
+  -> Dynamic t NodePos
+getPos mm = traceDyn "Pos" $ joinDynThroughMap $ fmap getNodePos mm
 
 getNodePos :: (Reflex t) => MindMap t -> Map NodeID (Dynamic t (Maybe Position))
 getNodePos (MindMap csize nm nt) = coords
